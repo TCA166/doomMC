@@ -14,6 +14,7 @@
 extern "C" {
     #include "networkingMc.h"
     #include "../cJSON/cJSON.h"
+    #include <string.h>
 }
 
 #define PORT 8080
@@ -27,6 +28,7 @@ extern "C" {
 struct client{
     int fd;
     byte state;
+    char* username;
 };
 
 /*!
@@ -65,7 +67,7 @@ static inline int handlePacket(packet* p, struct client* c){
                 //TODO finish the status request
                 byte data[256];
                 char json[] = "{\"version\":{\"name\":\"N/A\",\"protocol\":754},\"players\":{\"max\":100,\"online\":0,\"sample\":[]},\"description\":{\"text\":\"Hello world\"}}";
-                if(sendPacket(c->fd, writeString(data, json, sizeof(json)), STATUS_RESPONSE, (const byte*)data, NO_COMPRESSION) < 0){
+                if(sendPacket(c->fd, writeString(data, json, sizeof(json)), STATUS_RESPONSE, data, NO_COMPRESSION) < 0){
                     return -1;
                 }
             }
@@ -81,6 +83,17 @@ static inline int handlePacket(packet* p, struct client* c){
             break;   
         }
         case LOGIN_STATE:{
+            if(p->packetId == LOGIN_START){
+                //TODO fix
+                c->username = readString(p->data, &offset);
+                size_t len = strlen(c->username);
+                UUID_t uuid = readUUID(p->data, &offset);
+                byte data[sizeof(uuid) + len + 1 + MAX_VAR_INT];
+                *(UUID_t*)&data = uuid;
+                memcpy(data + sizeof(uuid), c->username, len + 1);
+                size_t size = writeVarInt(data + sizeof(uuid) + len + 1, 0);
+                sendPacket(c->fd, sizeof(uuid) + len + 1 + size, LOGIN_SUCCESS, data, NO_COMPRESSION);
+            }
             break;
         }
     }
@@ -178,7 +191,6 @@ int main(int argc, char *argv[]){
             if(FD_ISSET(clients[i].fd, &readfds)){
                 packet p = readPacket(clients[i].fd, NO_COMPRESSION);
                 while(!packetNull(p)){
-                    printf("packetId:%d\n", p.packetId);
                     if(handlePacket(&p, clients + i) < 0){
                         perror("handlePacket");
                         return EXIT_FAILURE;
