@@ -7,10 +7,11 @@
 class lobby{
     public:
         lobby(unsigned int maxPlayers);
-        void addPlayer(player p);
+        void addPlayer(player* p);
         unsigned int getPlayerCount();
+        unsigned int getMaxPlayers();
     private:
-        player *players;
+        player** players;
         unsigned int playerCount;
         const unsigned int maxPlayers;
 };

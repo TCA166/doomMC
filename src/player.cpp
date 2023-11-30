@@ -1,5 +1,5 @@
 #include "player.hpp"
 
-player::player(unsigned int id, int socket) : id(id), socket(socket){
+player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
     
 }

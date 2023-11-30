@@ -79,6 +79,9 @@ class client{
         packet getPacket();
         /*!
          @brief Sends a packet to the associated file descriptor
+         @param data the data to send
+         @param length the length of the data
+         @param packetId the id of the packet
          @return the number of bytes sent, 0 on EOF or -1 if an error occurred
         */
         int send(byte* data, int length, byte packetId);

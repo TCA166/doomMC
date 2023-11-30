@@ -2,13 +2,13 @@
 
 #define PLAYER_HPP
 
-class player{
+#include "client.hpp"
+
+class player : public client{
     public :
-        const unsigned int id;
-        player(unsigned int id, int socket);
-        void update();
+        player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol);
     private:
-        const int socket;
+        
 };
 
 #endif

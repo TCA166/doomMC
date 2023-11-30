@@ -74,6 +74,23 @@ cJSON* server::getMessage(){
     return (cJSON*)this->message;
 }
 
+void server::addToLobby(client* c){
+    for(int i = 0; i < this->connectedCount; i++){
+        if(this->connected[i] == c){
+            this->connected[i] = NULL;
+            this->connectedCount--;
+            break;
+        }
+    }
+    for(int i = 0; i < this->lobbyCount; i++){
+        if(this->lobbies[i]->getPlayerCount() < this->lobbies[i]->getMaxPlayers()){
+            this->lobbies[i]->addPlayer((player*)c);
+            return;
+        }
+    }
+    //TODO what do do with the client if there are no lobbies with space
+}
+
 int main(int argc, char *argv[]){
     //socket that accepts new connections
     int masterSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -120,7 +137,7 @@ int main(int argc, char *argv[]){
         fread(statusJson, 1, statusSize, statusFile);
         fclose(statusFile);
     }
-    server mainServer = server(10, 1, 100, cJSON_Parse(statusJson));
+    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson));
     //set of socket descriptors
     fd_set readfds;
     while(true){

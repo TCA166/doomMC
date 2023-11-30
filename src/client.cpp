@@ -62,6 +62,9 @@ int client::handlePacket(packet* p){
                 return 0;
             }
             this->protocol = readVarInt(p->data, &offset);
+            if(this->protocol > MAX_PROTOCOL){
+                return 0;
+            }
             int32_t serverAddressLength = readVarInt(p->data, &offset);
             offset += serverAddressLength + sizeof(unsigned short);
             int32_t nextState = readVarInt(p->data, &offset);
@@ -91,15 +94,19 @@ int client::handlePacket(packet* p){
         }
         case LOGIN_STATE:{
             if(p->packetId == LOGIN_START){
-                //TODO fix
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
                 UUID_t uuid = readUUID(p->data, &offset);
-                byte data[sizeof(uuid) + len + 1 + MAX_VAR_INT];
+                byte data[sizeof(uuid) + len + 1 + (MAX_VAR_INT * 2)];
                 *(UUID_t*)&data = uuid;
-                memcpy(data + sizeof(uuid), this->username, len + 1);
-                size_t size = writeVarInt(data + sizeof(uuid) + len + 1, 0);
-                this->send(data, sizeof(uuid) + len + 1 + size, LOGIN_SUCCESS);
+                size_t sz1 = writeString(data + sizeof(uuid), this->username, len);
+                size_t sz2 = writeVarInt(data + sizeof(uuid) + len + sz1, 0);
+                this->send(data, sizeof(uuid) + sz1 + sz2, LOGIN_SUCCESS);
+                this->state = PLAY_STATE;
+                this->serv->addToLobby(this);
+            }
+            else{
+                return 0;
             }
             break;
         }
