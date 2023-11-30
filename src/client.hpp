@@ -7,7 +7,8 @@ typedef enum{
     NONE_STATE = 0,
     STATUS_STATE = 1,
     LOGIN_STATE = 2,
-    PLAY_STATE = 3
+    PLAY_STATE = 3,
+    COFNIG_STATE = 4
 } state_t;
 
 class client{
@@ -16,6 +17,7 @@ class client{
         state_t state;
         char* username;
         int compression;
+        int32_t protocol;
     private:
         void disconnect();
     public:
@@ -26,7 +28,8 @@ class client{
          @param username the username of the client
          @param compression the compression level established with the client
         */
-        client(int fd, state_t state, char* username, int compression);
+        client(int fd, state_t state, char* username, int compression, int32_t protocol);
+        client(int fd);
         /*!
          @brief Constructs a client instance with all values set to 0 or NULL
         */

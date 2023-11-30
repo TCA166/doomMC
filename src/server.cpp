@@ -80,7 +80,7 @@ int main(int argc, char *argv[]){
         }
         //wait for an activity on one of the sockets, timeout is NULL, so wait indefinitely
         int activity = select(maxSd + 1, &readfds, NULL, NULL, NULL);
-        if((activity < 0) && (errno!=EINTR)){
+        if((activity < 0) && (errno != EINTR)){
             perror("select");
             return EXIT_FAILURE;
         }
@@ -100,7 +100,7 @@ int main(int argc, char *argv[]){
             int i;
             for(i = 0; i < MAX_CLIENTS; i++){
                 if(clients[i] == NULL){
-                    clients[i] = new client(newSocket, NONE_STATE, NULL, NO_COMPRESSION);
+                    clients[i] = new client(newSocket);
                     break;
                 }
             }

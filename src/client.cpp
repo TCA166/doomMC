@@ -8,11 +8,20 @@ extern "C" {
     #include <errno.h>
 }
 
-client::client(int fd, state_t state, char* username, int compression){
+client::client(int fd, state_t state, char* username, int compression, int32_t protocol){
     this->fd = fd;
     this->state = state;
     this->username = username;
     this->compression = compression;
+    this->protocol = protocol;
+}
+
+client::client(int fd){
+    this->fd = fd;
+    this->state = NONE_STATE;
+    this->username = NULL;
+    this->compression = NO_COMPRESSION;
+    this->protocol = 0;
 }
 
 client::client(){
@@ -20,6 +29,7 @@ client::client(){
     this->state = NONE_STATE;
     this->username = NULL;
     this->compression = NO_COMPRESSION;
+    this->protocol = 0;
 }
 
 client::~client(){
@@ -48,7 +58,7 @@ int client::handlePacket(packet* p){
             if(p->packetId != HANDSHAKE){
                 return 0;
             }
-            int32_t protocolVersion = readVarInt(p->data, &offset);
+            this->protocol = readVarInt(p->data, &offset);
             int32_t serverAddressLength = readVarInt(p->data, &offset);
             offset += serverAddressLength + sizeof(unsigned short);
             int32_t nextState = readVarInt(p->data, &offset);
