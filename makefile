@@ -1,6 +1,12 @@
 
-all: mcTypes.o networkingMc.o src/server.cpp cNBT.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o -lpthread -lz
+all: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o
+	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o cJSON.o -lpthread -lz
+
+lobby.o: src/lobby.cpp
+	g++ $(CFLAGS) -c src/lobby.cpp
+
+player.o: src/player.cpp
+	g++ $(CFLAGS) -c src/player.cpp
 
 mcTypes.o: src/mcTypes.c
 	gcc $(CFLAGS) -c src/mcTypes.c
@@ -14,3 +20,6 @@ cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c
 	gcc cNBT/nbt_treeops.c -o cNBT/nbt_treeops.o -c $(CFLAGS)
 	gcc cNBT/nbt_util.c -o cNBT/nbt_util.o -c $(CFLAGS)
 	ld -relocatable cNBT/buffer.o cNBT/nbt_parsing.o cNBT/nbt_treeops.o cNBT/nbt_util.o -o cNBT.o
+
+cJSON.o: cJSON/cJSON.c
+	gcc cJSON/cJSON.c -o cJSON.o -c $(CFLAGS)

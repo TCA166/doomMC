@@ -1,3 +1,6 @@
 [submodule "cNBT"]
 	path = cNBT
 	url = https://github.com/chmod222/cNBT.git
+[submodule "cJSON"]
+	path = cJSON
+	url = https://github.com/DaveGamble/cJSON.git

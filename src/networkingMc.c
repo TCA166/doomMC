@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
+#include <errno.h>
 
 #include <zlib.h>
 
@@ -27,7 +28,7 @@ static byteArray readSocket(int socketFd){
     while(nRead < size){
         //Read the rest of the packet
         int r = read(socketFd, input + nRead, size - nRead);
-        if(r < 1){
+        if(r == 0 || (r == -1 && (errno != EAGAIN && errno != EWOULDBLOCK))){
             free(input);
             return result;
         }
@@ -81,4 +82,49 @@ packet readPacket(int socketFd, int compression){
     packet result = parsePacket(&data, compression);
     free(data.bytes);
     return result;
+}
+
+ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int compression){
+    if(compression <= NO_COMPRESSION){ //packet type without compression
+        byte p[MAX_VAR_INT] = {};
+        size_t pSize = writeVarInt(p, packetId);
+        byte s[MAX_VAR_INT] = {};
+        size_t sSize = writeVarInt(s, size + pSize);
+        if(write(socketFd, s, sSize) == -1 || write(socketFd, p, pSize) == -1){
+            return -1;
+        }
+        if(data != NULL){
+            return write(socketFd, data, size);
+        }
+        return sSize + 1;
+    }
+    else{
+        byte* dataToCompress = calloc(MAX_VAR_INT + size, sizeof(byte));
+        size_t offset = writeVarInt(dataToCompress, packetId);
+        memcpy(dataToCompress + offset, data, size);
+        //ok so now we can compress
+        int dataLength = offset + size;
+        uLongf destLen = dataLength;
+        if(size + offset > compression){
+            byte* compressed = calloc(destLen, sizeof(byte));
+            if(compress(compressed, &destLen, dataToCompress, destLen) != Z_OK){
+                return -1;
+            }
+            free(dataToCompress);
+            dataToCompress = compressed;
+        }
+        else{
+            dataLength = 0;
+        }
+        byte* packet = calloc(destLen + (MAX_VAR_INT * 2), sizeof(byte));
+        byte l[MAX_VAR_INT] = {};
+        size_t sizeL = writeVarInt(l, dataLength);
+        size_t sizeP = writeVarInt(packet, destLen + sizeL);
+        memcpy(packet + sizeP, l, sizeL);
+        memcpy(packet + sizeP + sizeL, dataToCompress, destLen);
+        free(dataToCompress);
+        ssize_t res = write(socketFd, packet, destLen + sizeP + sizeL);
+        free(packet);
+        return res;
+    }
 }

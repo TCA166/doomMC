@@ -5,7 +5,7 @@
 //NOTE: I tend to use types from inttypes when dealing with ints that play a part in the protocol and MUST have a set size. 
 //However things like socketFds and indexes dont't need to be a set size so there I tend to use generic ints and shorts
 
-#include "cNBT/nbt.h"
+#include "../cNBT/nbt.h"
 
 //Just look at all of these... peculiar types. position especially
 
