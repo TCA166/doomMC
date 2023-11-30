@@ -6,8 +6,6 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 
-#include <pthread.h>
-
 #define PORT 8080
 #define MAX_LISTEN 5
 
