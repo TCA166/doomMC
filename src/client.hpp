@@ -1,3 +1,7 @@
+#ifndef CLIENT_HPP
+
+#define CLIENT_HPP
+
 extern "C" {
     #include "mcTypes.h"
     #include "networkingMc.h"
@@ -11,6 +15,8 @@ typedef enum{
     COFNIG_STATE = 4
 } state_t;
 
+class server;
+
 class client{
     protected:
         int fd;
@@ -20,6 +26,7 @@ class client{
         int32_t protocol;
     private:
         void disconnect();
+        server* serv;
     public:
         /*!
          @brief Constructs a client instance
@@ -28,8 +35,8 @@ class client{
          @param username the username of the client
          @param compression the compression level established with the client
         */
-        client(int fd, state_t state, char* username, int compression, int32_t protocol);
-        client(int fd);
+        client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol);
+        client(server* server, int fd);
         /*!
          @brief Constructs a client instance with all values set to 0 or NULL
         */
@@ -76,3 +83,5 @@ class client{
         */
         int send(byte* data, int length, byte packetId);
 };
+
+#endif

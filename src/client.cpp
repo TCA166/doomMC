@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include <unistd.h>
+#include "server.hpp"
 
 extern "C" {
     #include <stdlib.h>
@@ -8,7 +9,8 @@ extern "C" {
     #include <errno.h>
 }
 
-client::client(int fd, state_t state, char* username, int compression, int32_t protocol){
+client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol){
+    this->serv = server;
     this->fd = fd;
     this->state = state;
     this->username = username;
@@ -16,7 +18,8 @@ client::client(int fd, state_t state, char* username, int compression, int32_t p
     this->protocol = protocol;
 }
 
-client::client(int fd){
+client::client(server* server, int fd){
+    this->serv = server;
     this->fd = fd;
     this->state = NONE_STATE;
     this->username = NULL;
@@ -67,10 +70,16 @@ int client::handlePacket(packet* p){
         }
         case STATUS_STATE:{
             if(p->packetId == STATUS_REQUEST){
-                //TODO finish the status request
-                byte data[256];
-                char json[] = "{\"version\":{\"name\":\"N/A\",\"protocol\":754},\"players\":{\"max\":100,\"online\":0,\"sample\":[]},\"description\":{\"text\":\"Hello world\"}}";
-                return this->send(data, writeString(data, json, sizeof(json)), STATUS_RESPONSE);
+                cJSON* status = this->serv->getMessage();
+                cJSON* version = cJSON_GetObjectItemCaseSensitive(status, "version");
+                cJSON* protocol = cJSON_GetObjectItemCaseSensitive(version, "protocol");
+                cJSON_SetIntValue(protocol, this->protocol);
+                cJSON* players = cJSON_GetObjectItemCaseSensitive(status, "players");
+                cJSON_GetObjectItemCaseSensitive(players, "online")->valueint = this->serv->getPlayerCount();
+                char* json = cJSON_Print(status);
+                size_t sizeJson = strlen(json);
+                byte* data = (byte*)malloc(sizeJson + 1 + MAX_VAR_INT);
+                return this->send(data, writeString(data, json, sizeJson), STATUS_RESPONSE);
             }
             else if(p->packetId == PING_REQUEST){
                 int64_t val = readLong(p->data, &offset);

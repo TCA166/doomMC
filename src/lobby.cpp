@@ -2,8 +2,11 @@
 #include <stdlib.h>
 
 lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
-    this->numPlayers = 0;
+    this->playerCount = 0;
     this->players = (player*)calloc(maxPlayers, sizeof(player));
 }
 
+unsigned int lobby::getPlayerCount(){
+    return this->playerCount;
+}
 

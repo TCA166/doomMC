@@ -1,3 +1,4 @@
+#include "server.hpp"
 #include <iostream>
 
 #include <sys/socket.h>
@@ -21,6 +22,58 @@
 
 #define MAX_CLIENTS 100
 
+server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message) : lobbyCount(lobbyCount), maxConnected(maxConnected){
+    this->lobbies = (lobby**)calloc(lobbyCount, sizeof(lobby*));
+    for(int i = 0; i < lobbyCount; i++){
+        lobby l = lobby(maxPlayers);
+        this->lobbies[i] = &l;
+    }
+    this->connectedCount = 0;
+    this->connected = (client**)calloc(maxConnected, sizeof(client*));
+    this->message = message;
+}
+
+unsigned long server::getLobbyCount(){
+    return this->lobbyCount;
+}
+
+unsigned long server::getPlayerCount(){
+    unsigned long playerCount = 0;
+    for(int i = 0; i < this->lobbyCount; i++){
+        playerCount += this->lobbies[i]->getPlayerCount();
+    }
+    return playerCount;
+}
+
+void server::createClient(int socket){
+    if(this->connectedCount >= this->maxConnected){
+        close(socket);
+        return;
+    }
+    client* c = new client(this, socket);
+    for(int i = 0; i < MAX_CLIENTS; i++){
+        if(this->getClient(i) == NULL){
+            this->connected[i] = new client(this, socket);
+            break;
+        }
+    }
+    connectedCount++;
+}
+
+void server::disconnectClient(int n){
+    delete this->connected[n];
+    this->connected[n] = NULL;
+    this->connectedCount--;
+}
+
+client* server::getClient(int n){
+    return this->connected[n];
+}
+
+cJSON* server::getMessage(){
+    return (cJSON*)this->message;
+}
+
 int main(int argc, char *argv[]){
     //socket that accepts new connections
     int masterSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -28,9 +81,6 @@ int main(int argc, char *argv[]){
         perror("socket");
         return EXIT_FAILURE;
     }
-    //Array of currently processed clients
-    client* clients[MAX_CLIENTS];
-    memset(clients, 0, MAX_CLIENTS * sizeof(client*));
     int opt = true;
     //set master socket to allow multiple connections
     if(setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0 ){
@@ -54,8 +104,23 @@ int main(int argc, char *argv[]){
         perror("listen");
         return EXIT_FAILURE;
     }
-    lobby lobbies[MAX_LOBBIES] = {lobby(10)};
     int maxSd = masterSocket;
+    //get the status.json file
+    char* statusJson;
+    {
+        FILE* statusFile = fopen("status.json", "r");
+        if(statusFile == NULL){
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+        fseek(statusFile, 0, SEEK_END);
+        long statusSize = ftell(statusFile);
+        rewind(statusFile);
+        statusJson = (char*)malloc(statusSize + 1);
+        fread(statusJson, 1, statusSize, statusFile);
+        fclose(statusFile);
+    }
+    server mainServer = server(10, 1, 100, cJSON_Parse(statusJson));
     //set of socket descriptors
     fd_set readfds;
     while(true){
@@ -66,8 +131,8 @@ int main(int argc, char *argv[]){
         //readd all the remaining clients to the set
         for(int i = 0; i < MAX_CLIENTS; i++){
             //socket descriptor
-            if(clients[i] != NULL){
-                int sd = clients[i]->getFd();
+            if(mainServer.getClient(i) != NULL){
+                int sd = mainServer.getClient(i)->getFd();
                 //if valid socket descriptor then add to read list
                 if(sd > 0){
                     FD_SET(sd, &readfds);
@@ -97,38 +162,28 @@ int main(int argc, char *argv[]){
                 return EXIT_FAILURE;
             }
             //add new socket to list
-            int i;
-            for(i = 0; i < MAX_CLIENTS; i++){
-                if(clients[i] == NULL){
-                    clients[i] = new client(newSocket);
-                    break;
-                }
-            }
-            if(i == MAX_CLIENTS){
-                close(newSocket);
-            }
+            mainServer.createClient(newSocket);
         }
         //do IO on a different socket
         for(int i = 0; i < MAX_CLIENTS; i++){
-            if(clients[i] == NULL){
+            if(mainServer.getClient(i) == NULL){
                 continue;
             }
             byte b;
-            int thisFd = clients[i]->getFd();
+            int thisFd = mainServer.getClient(i)->getFd();
             if(FD_ISSET(thisFd, &readfds)){
-                packet p = clients[i]->getPacket();
+                packet p = mainServer.getClient(i)->getPacket();
                 int res = 1;
                 while(!packetNull(p)){
-                    res = clients[i]->handlePacket(&p);
+                    res = mainServer.getClient(i)->handlePacket(&p);
                     if(res < 1){
                         break;
                     }
                     free(p.data);
-                    p = clients[i]->getPacket();
+                    p = mainServer.getClient(i)->getPacket();
                 }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
-                    delete clients[i];
-                    clients[i] = NULL;
+                    mainServer.disconnectClient(i);
                 }
             }
         }
