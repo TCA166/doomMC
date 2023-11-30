@@ -5,11 +5,6 @@
 
 #define NO_COMPRESSION -1
 
-#define NONE_STATE 0
-#define STATUS_STATE 1
-#define LOGIN_STATE 2
-#define PLAY_STATE 3
-
 //A minecraft style networking packet
 typedef struct packet{
     int32_t size; //The size of data
