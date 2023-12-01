@@ -7,13 +7,8 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <fcntl.h>
-#include <pthread.h>
 
 #include <string.h>
-
-#include "player.hpp"
-#include "lobby.hpp"
-#include "client.hpp"
 
 #define PORT 8080
 #define MAX_LISTEN 5
@@ -50,7 +45,6 @@ void server::createClient(int socket){
         close(socket);
         return;
     }
-    client* c = new client(this, socket);
     for(int i = 0; i < MAX_CLIENTS; i++){
         if(this->getClient(i) == NULL){
             this->connected[i] = new client(this, socket);
@@ -183,21 +177,22 @@ int main(int argc, char *argv[]){
         }
         //do IO on a different socket
         for(int i = 0; i < MAX_CLIENTS; i++){
-            if(mainServer.getClient(i) == NULL){
+            client* c = mainServer.getClient(i);
+            if(c == NULL){
                 continue;
             }
             byte b;
-            int thisFd = mainServer.getClient(i)->getFd();
+            int thisFd = c->getFd();
             if(FD_ISSET(thisFd, &readfds)){
-                packet p = mainServer.getClient(i)->getPacket();
+                packet p = c->getPacket();
                 int res = 1;
                 while(!packetNull(p)){
-                    res = mainServer.getClient(i)->handlePacket(&p);
-                    if(res < 1){
+                    res = c->handlePacket(&p);
+                    if(res < 1 || c->getState() == PLAY_STATE){
                         break;
                     }
                     free(p.data);
-                    p = mainServer.getClient(i)->getPacket();
+                    p = c->getPacket();
                 }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
                     mainServer.disconnectClient(i);

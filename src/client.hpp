@@ -12,20 +12,20 @@ typedef enum{
     STATUS_STATE = 1,
     LOGIN_STATE = 2,
     PLAY_STATE = 3,
-    COFNIG_STATE = 4
+    CONFIG_STATE = 4
 } state_t;
 
 class server;
 
 class client{
     protected:
-        int fd;
-        state_t state;
-        char* username;
-        int compression;
-        int32_t protocol;
+        int fd; //associated socket file descriptor, or -1 if disconnected
+        state_t state; //the current client state
+        char* username; //the username of the client or NULL if not logged in
+        int compression; //the compression level established with the client
+        int32_t protocol; //the protocol version of the client
+        UUID_t uuid; //the uuid of the client
     private:
-        void disconnect();
         server* serv;
     public:
         /*!
@@ -51,7 +51,7 @@ class client{
          @brief Gets the state of the client
          @return the state of the client
         */
-        byte getState();
+        state_t getState();
         /*!
          @brief Gets the username of the client
          @return the username of the client
@@ -85,6 +85,10 @@ class client{
          @return the number of bytes sent, 0 on EOF or -1 if an error occurred
         */
         int send(byte* data, int length, byte packetId);
+        /*! 
+         @brief Disconnects the client and sets the fd to -1
+        */
+        void disconnect();
 };
 
 #endif

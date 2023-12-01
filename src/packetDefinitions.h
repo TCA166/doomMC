@@ -23,6 +23,7 @@
 #define LOGIN_START 0x00 //Bound to Server during login. https://wiki.vg/Protocol#Login_Start
 #define ENCRYPTION_RESPONSE 0x01 //Bound to Server during login. https://wiki.vg/Protocol#Encryption_Response
 #define LOGIN_PLUGIN_RESPONSE 0x02 //Bound to Server during login. https://wiki.vg/Protocol#Login_Plugin_Response
+#define LOGIN_ACKNOWLEDGED 0x03 //Bound to Server during login. https://wiki.vg/Protocol#Login_Acknowledged
 
 //Play packets
 

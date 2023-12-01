@@ -41,6 +41,15 @@ client::~client(){
 }
 
 void client::disconnect(){
+    if(this->fd == -1){
+        return;
+    }
+    if(this->state == PLAY_STATE){
+        this->send(NULL, 0, DISCONNECT_PLAY); //send disconnect packet
+    }
+    else if(this->state == LOGIN_STATE){
+        this->send(NULL, 0, DISCONNECT_LOGIN); //send disconnect packet
+    }
     close(this->fd);
     this->fd = -1;
 }
@@ -62,9 +71,6 @@ int client::handlePacket(packet* p){
                 return 0;
             }
             this->protocol = readVarInt(p->data, &offset);
-            if(this->protocol > MAX_PROTOCOL){
-                return 0;
-            }
             int32_t serverAddressLength = readVarInt(p->data, &offset);
             offset += serverAddressLength + sizeof(unsigned short);
             int32_t nextState = readVarInt(p->data, &offset);
@@ -96,19 +102,28 @@ int client::handlePacket(packet* p){
             if(p->packetId == LOGIN_START){
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
-                UUID_t uuid = readUUID(p->data, &offset);
+                this->uuid = readUUID(p->data, &offset);
                 byte data[sizeof(uuid) + len + 1 + (MAX_VAR_INT * 2)];
                 *(UUID_t*)&data = uuid;
                 size_t sz1 = writeString(data + sizeof(uuid), this->username, len);
                 size_t sz2 = writeVarInt(data + sizeof(uuid) + len + sz1, 0);
                 this->send(data, sizeof(uuid) + sz1 + sz2, LOGIN_SUCCESS);
-                this->state = PLAY_STATE;
-                this->serv->addToLobby(this);
+                if(this->protocol <= NO_CONFIG){
+                    this->state = PLAY_STATE;
+                    this->serv->addToLobby(this);
+                }
+            }
+            else if(p->packetId == LOGIN_ACKNOWLEDGED){
+                this->state = CONFIG_STATE;
+                this->send(NULL, 0, 0x02);
             }
             else{
                 return 0;
             }
             break;
+        }
+        default:{
+            return 0;
         }
     }
     return 1;
@@ -122,7 +137,7 @@ int client::getFd(){
     return this->fd;
 }
 
-byte client::getState(){
+state_t client::getState(){
     return this->state;
 }
 

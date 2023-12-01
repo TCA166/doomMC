@@ -9,7 +9,7 @@ extern "C"{
     #include "../cJSON/cJSON.h"
 }
 
-#define MAX_PROTOCOL 762
+#define NO_CONFIG 763
 
 class server{    
     private:
