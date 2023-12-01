@@ -60,35 +60,41 @@ void player::changeLobby(lobby* lobby){
 void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->currentLobby = assignedLobby;
     this->eid = eid++;
-    char* dimensionName = "minecraft:overworld";
-    byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5)];
-    *(int32_t*)data = eid;
-    data[4] = false; //not hardcore
-    data[5] = 0; //gamemode
-    data[6] = -1; //prev gamemode
-    size_t offset = writeVarInt(data + 7, 1) + 7;
-    offset += writeString(data + offset, dimensionName, 19);
-    data[offset] = 0; //codec
-    offset++;
-    offset += writeString(data + offset, dimensionName, 19);
-    offset += writeString(data + offset, dimensionName, 19);
-    *(int32_t*)(data + offset) = 0; //seed
-    offset += 4;
-    offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
-    offset += writeVarInt(data + offset, 8); //draw distance
-    offset += writeVarInt(data + offset, 8); //sim distance
-    data[offset] = false; //reduced debug info
-    offset++;
-    data[offset] = false; //immediate respawn
-    offset++;
-    data[offset] = true; //debug
-    offset++;
-    data[offset] = false; //flat
-    offset++;
-    data[offset] = false; //death location
-    offset++;
-    offset += writeVarInt(data + offset, 0); //portal cooldown
-    this->send(data, offset, LOGIN_PLAY);
+    { //send LOGIN_PLAY
+        char* dimensionName = "minecraft:overworld";
+        byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5)];
+        *(int32_t*)data = eid;
+        data[4] = false; //not hardcore
+        data[5] = 0; //gamemode
+        data[6] = -1; //prev gamemode
+        size_t offset = writeVarInt(data + 7, 1) + 7;
+        offset += writeString(data + offset, dimensionName, 19);
+        //TODO fix this to have a proper codec
+        data[offset] = 0; //codec
+        offset++;
+        offset += writeString(data + offset, dimensionName, 19);
+        offset += writeString(data + offset, dimensionName, 19);
+        *(int32_t*)(data + offset) = 0; //seed
+        offset += 4;
+        offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
+        offset += writeVarInt(data + offset, 8); //draw distance
+        offset += writeVarInt(data + offset, 8); //sim distance
+        data[offset] = false; //reduced debug info
+        offset++;
+        data[offset] = false; //immediate respawn
+        offset++;
+        data[offset] = true; //debug
+        offset++;
+        data[offset] = false; //flat
+        offset++;
+        data[offset] = false; //death location
+        offset++;
+        offset += writeVarInt(data + offset, 0); //portal cooldown
+        this->send(data, offset, LOGIN_PLAY);
+    }
+    {//then send Set Container Content
+        
+    }
 }
 
 int player::handlePacket(packet* p){

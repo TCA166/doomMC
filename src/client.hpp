@@ -69,6 +69,7 @@ class client{
         void setUsername(char* username);
         /*!
          @brief Handles a provided packet in reference to this instance
+         @param p the packet to handle
          @return 1 if the packet was handled successfully, 0 on EOF, -1 if an error occurred
         */
         int handlePacket(packet* p);
