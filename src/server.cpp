@@ -18,10 +18,10 @@
 #define MAX_CLIENTS 100
 
 server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message) : lobbyCount(lobbyCount), maxConnected(maxConnected){
-    this->lobbies = (lobby**)calloc(lobbyCount, sizeof(lobby*));
+    this->lobbies = new lobby*[lobbyCount];
     for(int i = 0; i < lobbyCount; i++){
-        lobby l = lobby(maxPlayers);
-        this->lobbies[i] = &l;
+        lobby* l = new lobby(maxPlayers);
+        this->lobbies[i] = l;
     }
     this->connectedCount = 0;
     this->connected = (client**)calloc(maxConnected, sizeof(client*));
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]){
         fseek(statusFile, 0, SEEK_END);
         long statusSize = ftell(statusFile);
         rewind(statusFile);
-        statusJson = (char*)malloc(statusSize + 1);
+        statusJson = (char*)calloc(statusSize + 1, sizeof(char));
         fread(statusJson, 1, statusSize, statusFile);
         fclose(statusFile);
     }
@@ -193,6 +193,9 @@ int main(int argc, char *argv[]){
                     }
                     free(p.data);
                     p = c->getPacket();
+                }
+                if(!packetNull(p)){
+                    free(p.data);
                 }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
                     mainServer.disconnectClient(i);

@@ -17,7 +17,7 @@ class player : public client{
         void dealDamage(int damage);
         void sendMessage(char* message);
         void changeLobby(lobby* lobby);
-        void startPlay(int32_t eid);
+        void startPlay(int32_t eid, lobby* assignedLobby);
         int heldSlot;
     private:
         double x, y, z;

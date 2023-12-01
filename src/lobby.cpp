@@ -7,13 +7,14 @@
 
 typedef void*(*thread)(void*);
 
+#define timeout {60, 0}
+
 void* lobby::monitorPlayers(lobby* thisLobby){
     fd_set readfds;
     int maxSd = 0;
     while(true){
         FD_ZERO(&readfds);
         for(int i = 0; i < thisLobby->playerCount; i++){
-            fprintf(stderr, "%p", thisLobby->players);
             if (thisLobby->players[i] == NULL){
                 continue;
             }
@@ -23,43 +24,47 @@ void* lobby::monitorPlayers(lobby* thisLobby){
                 maxSd = fd;
             }
         }
-        int activity = select(maxSd + 1, &readfds, NULL, NULL, NULL);
-        if((activity < 0) && (errno != EINTR)){
+        int activity = select(maxSd + 1, &readfds, NULL, NULL, &thisLobby->monitorTimeout);
+        if(activity > 0){
+            for(int i = 0; i < thisLobby->playerCount; i++){
+                if (thisLobby->players[i] == NULL){
+                    continue;
+                }
+                int fd = thisLobby->players[i]->getFd();
+                if(FD_ISSET(fd, &readfds)){
+                    packet p = thisLobby->players[i]->getPacket();
+                    while(!packetNull(p)){
+                        int res = thisLobby->players[i]->handlePacket(&p);
+                        printf("res: %d\n", res);
+                        if(res < 1){
+                            break;
+                        }
+                        free(p.data);
+                        p = thisLobby->players[i]->getPacket();
+                    }
+                    if(errno != EAGAIN && errno == EWOULDBLOCK){
+                        delete thisLobby->players[i];
+                        thisLobby->players[i] = NULL;
+                    }
+                }
+            }
+        }
+        else if((activity < 0) && (errno != EINTR)){
             perror("monitor select");
             return NULL;
         }
-        for(int i = 0; i < thisLobby->playerCount; i++){
-            if (thisLobby->players[i] == NULL){
-                continue;
-            }
-            int fd = thisLobby->players[i]->getFd();
-            if(FD_ISSET(fd, &readfds)){
-                packet p = thisLobby->players[i]->getPacket();
-                while(!packetNull(p)){
-                    int res = thisLobby->players[i]->handlePacket(&p);
-                    if(res < 1){
-                        break;
-                    }
-                    free(p.data);
-                    p = thisLobby->players[i]->getPacket();
-                }
-                if(errno != EAGAIN && errno == EWOULDBLOCK){
-                    delete thisLobby->players[i];
-                    thisLobby->players[i] = NULL;
-                }
-            }
-        }
+        thisLobby->monitorTimeout = timeout;
     }
 }
 
 lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
     this->playerCount = 0;
+    this->monitorTimeout = timeout; //60 seconds
     this->players = new player*[maxPlayers];
-    fprintf(stderr, "%p\n", this->players); //TODO this shenanigans
+    memset(this->players, 0, sizeof(player*) * maxPlayers);
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
     }
-    
 }
 
 unsigned int lobby::getPlayerCount(){
@@ -70,10 +75,11 @@ void lobby::addPlayer(player* p){
     if(this->playerCount >= this->maxPlayers){
         return;
     }
-    for(int i = 0; i < this->playerCount; i++){
+    for(int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] == NULL){
-            p->startPlay(i);
+            p->startPlay(i, this);
             this->players[i] = p;
+            this->monitorTimeout = {0, 0};
         }
     }
     this->playerCount++;

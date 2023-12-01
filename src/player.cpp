@@ -57,8 +57,8 @@ void player::changeLobby(lobby* lobby){
     this->currentLobby = lobby;
 }
 
-void player::startPlay(int32_t eid){
-    printf("startPlay");
+void player::startPlay(int32_t eid, lobby* assignedLobby){
+    this->currentLobby = assignedLobby;
     this->eid = eid++;
     char* dimensionName = "minecraft:overworld";
     byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5)];
@@ -70,8 +70,8 @@ void player::startPlay(int32_t eid){
     offset += writeString(data + offset, dimensionName, 19);
     data[offset] = 0; //codec
     offset++;
-    offset += writeString(data + offset, "minecraft:overworld", 19);
-    offset += writeString(data + offset, "minecraft:overworld", 19);
+    offset += writeString(data + offset, dimensionName, 19);
+    offset += writeString(data + offset, dimensionName, 19);
     *(int32_t*)(data + offset) = 0; //seed
     offset += 4;
     offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players

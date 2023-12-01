@@ -2,6 +2,7 @@
 
 #define LOBBY_HPP
 #include <pthread.h>
+#include <sys/select.h>
 
 class player;
 
@@ -26,6 +27,7 @@ class lobby{
         unsigned int playerCount;
         const unsigned int maxPlayers;
         static void* monitorPlayers(lobby* thisLobby);
+        struct timeval monitorTimeout;
 };
 
 #endif

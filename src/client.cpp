@@ -87,8 +87,10 @@ int client::handlePacket(packet* p){
                 cJSON_GetObjectItemCaseSensitive(players, "online")->valueint = this->serv->getPlayerCount();
                 char* json = cJSON_Print(status);
                 size_t sizeJson = strlen(json);
-                byte* data = (byte*)malloc(sizeJson + 1 + MAX_VAR_INT);
-                return this->send(data, writeString(data, json, sizeJson), STATUS_RESPONSE);
+                byte data[sizeJson + 1 + MAX_VAR_INT];
+                size_t dataSz = writeString(data, json, sizeJson);
+                free(json);
+                return this->send(data, dataSz, STATUS_RESPONSE);
             }
             else if(p->packetId == PING_REQUEST){
                 int64_t val = readLong(p->data, &offset);
@@ -106,7 +108,7 @@ int client::handlePacket(packet* p){
                 byte data[sizeof(uuid) + len + 1 + (MAX_VAR_INT * 2)];
                 *(UUID_t*)&data = uuid;
                 size_t sz1 = writeString(data + sizeof(uuid), this->username, len);
-                size_t sz2 = writeVarInt(data + sizeof(uuid) + len + sz1, 0);
+                size_t sz2 = writeVarInt(data + sizeof(uuid) + sz1, 0);
                 this->send(data, sizeof(uuid) + sz1 + sz2, LOGIN_SUCCESS);
                 if(this->protocol <= NO_CONFIG){
                     this->state = PLAY_STATE;
@@ -116,6 +118,8 @@ int client::handlePacket(packet* p){
             else if(p->packetId == LOGIN_ACKNOWLEDGED){
                 this->state = CONFIG_STATE;
                 this->send(NULL, 0, 0x02);
+                this->state = PLAY_STATE;
+                this->serv->addToLobby(this);
             }
             else{
                 return 0;
