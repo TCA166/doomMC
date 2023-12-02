@@ -3,41 +3,32 @@
 
 extern "C"{
     #include <stdlib.h>
+    #include <stdio.h>
     #include <pthread.h>
     #include <errno.h>
     #include <string.h>
+    #include "../cNBT/nbt.h"
 }
 
 typedef void*(*thread)(void*);
 
 #define timeout {60, 0}
+#define templateRegistry "registryCodec.nbt"
 
 //TODO handle 1.20 change to NBT (root tag no name)
 byteArray lobby::createRegistryCodec(){
-    size_t size = 85;
-    byte* codec = new byte[size];
-    codec[0] = TAG_COMPOUND;
-    writeBigEndianShort(codec + 1, 0); //no name for root tag
-    {//init world world tag
-        codec[3] = TAG_COMPOUND;
-        writeBigEndianShort(codec + 4, 24); //no name for root tag
-        memcpy(codec + 7, "minecraft:dimension_type", 24);
-        codec[31] = TAG_INVALID;
+    FILE* f = fopen(templateRegistry, "rb");
+    if(f == NULL){
+        perror("fopen");
+        return {NULL, 0};
     }
-    {//biome tag
-        codec[32] = TAG_COMPOUND;
-        writeBigEndianShort(codec + 33, 24); //no name for root tag
-        memcpy(codec + 35, "minecraft:worldgen/biome", 24);
-        codec[59] = TAG_INVALID;
-    }
-    {//chat tag
-        codec[60] = TAG_COMPOUND;
-        writeBigEndianShort(codec + 61, 20); //no name for root tag
-        memcpy(codec + 63, "minecraft:chat_type ", 20);
-        codec[83] = TAG_INVALID;
-    }
-    codec[84] = TAG_INVALID;
-    return {codec, size};
+    fseek(f, 0, SEEK_END);
+    size_t len = ftell(f);
+    byte* data = (byte*)malloc(len);
+    fseek(f, 0, SEEK_SET);
+    fread(data, 1, len, f);
+    fclose(f);
+    return {data, len};
 }
 
 byteArray lobby::getRegistryCodec(){
@@ -84,7 +75,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
                 }
             }
         }
-        else if((activity < 0) && (errno != EINTR)){
+        else if(activity < 0 && errno != EINTR && errno != EBADF){
             perror("monitor select");
             return NULL;
         }
@@ -101,6 +92,9 @@ lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
         throw "Failed to create monitor thread";
     }
     this->registryCodec = this->createRegistryCodec();
+    if(this->registryCodec.bytes == NULL){
+        throw "Failed to create registry codec";
+    }
 }
 
 unsigned int lobby::getPlayerCount(){
@@ -113,9 +107,10 @@ void lobby::addPlayer(player* p){
     }
     for(int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] == NULL){
-            p->startPlay(i, this);
             this->players[i] = p;
+            p->startPlay(i, this);
             this->monitorTimeout = {0, 0};
+            break;
         }
     }
     this->playerCount++;

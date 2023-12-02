@@ -7,7 +7,17 @@ extern "C"{
 }
 
 player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
-    
+    //initialize the not inherited fields
+    this->currentLobby = NULL;
+    this->eid = 0;
+    this->heldSlot = 0;
+    this->x = 0;
+    this->y = 0;
+    this->z = 0;
+    this->yaw = 0;
+    this->pitch = 0;
+    this->onGround = false;
+    this->health = 20;
 }
 
 void player::setWeapons(int damage[9], int maxAmmo[9], int rateOfFire[9]){
@@ -57,25 +67,30 @@ void player::changeLobby(lobby* lobby){
 }
 
 void player::startPlay(int32_t eid, lobby* assignedLobby){
+    if(this->currentLobby != NULL){
+        return;
+    }
     this->currentLobby = assignedLobby;
     this->eid = eid++;
     { //send LOGIN_PLAY
         char* dimensionName = "minecraft:overworld";
         byteArray registryCodec = this->currentLobby->getRegistryCodec();
-        byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec.len];
-        *(int32_t*)data = eid;
-        data[4] = false; //not hardcore
-        data[5] = 0; //gamemode
-        data[6] = -1; //prev gamemode
-        size_t offset = writeVarInt(data + 7, 1) + 7;
+        byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec.len];
+        size_t offset = writeBigEndianInt(data, eid);
+        data[offset] = false; //not hardcore
+        offset++;
+        data[offset] = 0; //gamemode
+        offset++;
+        data[offset] = -1; //prev gamemode
+        offset++;
+        offset += writeVarInt(data + 7, 1);
         offset += writeString(data + offset, dimensionName, 19);
         //write the registry codec
         memcpy(data + offset, registryCodec.bytes, registryCodec.len);
         offset += registryCodec.len;
         offset += writeString(data + offset, dimensionName, 19);
         offset += writeString(data + offset, dimensionName, 19);
-        *(int32_t*)(data + offset) = 0; //seed
-        offset += 4;
+        offset += writeBigEndianLong(data + offset, 0); //seed
         offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
         offset += writeVarInt(data + offset, 8); //draw distance
         offset += writeVarInt(data + offset, 8); //sim distance
@@ -90,7 +105,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         data[offset] = false; //death location
         offset++;
         offset += writeVarInt(data + offset, 0); //portal cooldown
-        this->send(data, offset, LOGIN_PLAY);
+        int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
     }
     {//then send Set Container Content
         

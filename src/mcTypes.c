@@ -174,6 +174,12 @@ uint16_t readBigEndianUShort(const byte* buff, int* index){
     return swapUShort(s);
 }
 
+size_t writeBigEndianInt(byte* buff, int32_t num){
+    int32_t bigEndian = swapInt(num);
+    *(int32_t*)buff = bigEndian;
+    return sizeof(int32_t);
+}
+
 int32_t readBigEndianInt(const byte* buff, int* index){
     int32_t i = readInt(buff, index);
     return swapInt(i);
@@ -320,6 +326,12 @@ int64_t readVarLong(const byte* buff, int* index){
         }
     }
     return value;
+}
+
+size_t writeBigEndianLong(byte* buff, int64_t num){
+    int64_t bigEndian = swapLong(num);
+    *(int64_t*)buff = bigEndian;
+    return sizeof(int64_t);
 }
 
 int64_t readBigEndianLong(const byte* buff, int* index){

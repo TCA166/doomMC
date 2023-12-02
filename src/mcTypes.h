@@ -153,6 +153,14 @@ byteArray readByteArray(const byte* buff, int* index);
 int32_t readInt(const byte* buff, int* index);
 
 /*!
+ @brief Writes a little endian as big endian int32 to the buffer
+ @param buff the buffer to write to
+ @param num the number to write
+ @return the amount of bytes written
+*/
+size_t writeBigEndianInt(byte* buff, int32_t num);
+
+/*!
  @brief Reads a big endian int32 from the buffer and then swaps the endianness
  @param buff the buffer to read from
  @param index the pointer to the index at which the value should be read, is incremented by the number of bytes read. Can be NULL, at which point index=0
@@ -167,6 +175,14 @@ int32_t readBigEndianInt(const byte* buff, int* index);
  @return the encoded int64
 */
 int64_t readLong(const byte* buff, int* index);
+
+/*!
+ @brief Writes an int64 to the buffer as big endian
+ @param buff the buffer to write to
+ @param num the number to write
+ @return the amount of bytes written
+*/
+size_t writeBigEndianLong(byte* buff, int64_t num);
 
 /*!
  @brief Reads a big endian int64 from the buffer and then swaps the endianness

@@ -17,12 +17,13 @@ mcTypes.o: src/mcTypes.c
 networkingMc.o: src/networkingMc.c
 	gcc $(CFLAGS) -c src/networkingMc.c
 
-cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c
+cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c cNBT/nbt_loading.c
+	gcc cNBT/nbt_loading.c -o cNBT/nbt_loading.o -c $(CFLAGS)
 	gcc cNBT/buffer.c -o cNBT/buffer.o -c $(CFLAGS)
 	gcc cNBT/nbt_parsing.c -o cNBT/nbt_parsing.o -c $(CFLAGS)
 	gcc cNBT/nbt_treeops.c -o cNBT/nbt_treeops.o -c $(CFLAGS)
 	gcc cNBT/nbt_util.c -o cNBT/nbt_util.o -c $(CFLAGS)
-	ld -relocatable cNBT/buffer.o cNBT/nbt_parsing.o cNBT/nbt_treeops.o cNBT/nbt_util.o -o cNBT.o
+	ld -relocatable cNBT/nbt_loading.o cNBT/buffer.o cNBT/nbt_parsing.o cNBT/nbt_treeops.o cNBT/nbt_util.o -o cNBT.o
 
 cJSON.o: cJSON/cJSON.c
 	gcc cJSON/cJSON.c -o cJSON.o -c $(CFLAGS)
