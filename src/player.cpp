@@ -1,11 +1,10 @@
 #include "player.hpp"
 #include "lobby.hpp"
+#include "server.hpp"
 
 extern "C"{
-    #include "../cNBT/nbt.h"
     #include <string.h>
 }
-
 
 player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
     
@@ -62,16 +61,17 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->eid = eid++;
     { //send LOGIN_PLAY
         char* dimensionName = "minecraft:overworld";
-        byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5)];
+        byteArray registryCodec = this->currentLobby->getRegistryCodec();
+        byte data[(sizeof(int32_t) * 2) + 9 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec.len];
         *(int32_t*)data = eid;
         data[4] = false; //not hardcore
         data[5] = 0; //gamemode
         data[6] = -1; //prev gamemode
         size_t offset = writeVarInt(data + 7, 1) + 7;
         offset += writeString(data + offset, dimensionName, 19);
-        //TODO fix this to have a proper codec
-        data[offset] = 0; //codec
-        offset++;
+        //write the registry codec
+        memcpy(data + offset, registryCodec.bytes, registryCodec.len);
+        offset += registryCodec.len;
         offset += writeString(data + offset, dimensionName, 19);
         offset += writeString(data + offset, dimensionName, 19);
         *(int32_t*)(data + offset) = 0; //seed

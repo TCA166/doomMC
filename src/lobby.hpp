@@ -1,10 +1,14 @@
 #ifndef LOBBY_HPP
 
 #define LOBBY_HPP
-#include <pthread.h>
-#include <sys/select.h>
 
-class player;
+extern "C"{
+    #include <pthread.h>
+    #include <sys/select.h>
+    #include "mcTypes.h"
+}
+
+#include "player.hpp"
 
 struct weaponSettings{
     int damage;
@@ -40,6 +44,11 @@ class lobby{
          @param p the player to remove
         */
         void removePlayer(player* p);
+        /*!
+         @brief Gets the registry codec
+         @return the registry codec
+        */
+        byteArray getRegistryCodec();
     private:
         pthread_t monitor;
         pthread_t main;
@@ -52,6 +61,8 @@ class lobby{
         */
         static void* monitorPlayers(lobby* thisLobby);
         struct timeval monitorTimeout; // the timeval struct used in monitorPlayers
+        byteArray registryCodec;
+        byteArray createRegistryCodec();
 };
 
 #endif

@@ -2,6 +2,8 @@
 
 #define CLIENT_HPP
 
+class player;
+
 extern "C" {
     #include "mcTypes.h"
     #include "networkingMc.h"
@@ -41,7 +43,7 @@ class client{
          @brief Constructs a client instance with all values set to 0 or NULL
         */
         client();
-        ~client();
+        virtual ~client();
         /*!
          @brief Gets the socket file descriptor associated with the client
          @return the socket file descriptor
@@ -72,7 +74,7 @@ class client{
          @param p the packet to handle
          @return 1 if the packet was handled successfully, 0 on EOF, -1 if an error occurred
         */
-        int handlePacket(packet* p);
+        virtual int handlePacket(packet* p);
         /*!
         @brief Gets the packet from the associated file descriptor
         @return the packet or a null packet if a packet could not be read
@@ -90,6 +92,11 @@ class client{
          @brief Disconnects the client and sets the fd to -1
         */
         void disconnect();
+        /*!
+         @brief Converts this client into a player
+         @return a pointer to the new player instance
+        */
+        virtual player* toPlayer();
 };
 
 #endif

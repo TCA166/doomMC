@@ -1,13 +1,48 @@
 #include "lobby.hpp"
-#include <stdlib.h>
-#include <pthread.h>
-#include <errno.h>
 #include "player.hpp"
-#include <string.h>
+
+extern "C"{
+    #include <stdlib.h>
+    #include <pthread.h>
+    #include <errno.h>
+    #include <string.h>
+}
 
 typedef void*(*thread)(void*);
 
 #define timeout {60, 0}
+
+//TODO handle 1.20 change to NBT (root tag no name)
+byteArray lobby::createRegistryCodec(){
+    size_t size = 85;
+    byte* codec = new byte[size];
+    codec[0] = TAG_COMPOUND;
+    writeBigEndianShort(codec + 1, 0); //no name for root tag
+    {//init world world tag
+        codec[3] = TAG_COMPOUND;
+        writeBigEndianShort(codec + 4, 24); //no name for root tag
+        memcpy(codec + 7, "minecraft:dimension_type", 24);
+        codec[31] = TAG_INVALID;
+    }
+    {//biome tag
+        codec[32] = TAG_COMPOUND;
+        writeBigEndianShort(codec + 33, 24); //no name for root tag
+        memcpy(codec + 35, "minecraft:worldgen/biome", 24);
+        codec[59] = TAG_INVALID;
+    }
+    {//chat tag
+        codec[60] = TAG_COMPOUND;
+        writeBigEndianShort(codec + 61, 20); //no name for root tag
+        memcpy(codec + 63, "minecraft:chat_type ", 20);
+        codec[83] = TAG_INVALID;
+    }
+    codec[84] = TAG_INVALID;
+    return {codec, size};
+}
+
+byteArray lobby::getRegistryCodec(){
+    return this->registryCodec;
+}
 
 void* lobby::monitorPlayers(lobby* thisLobby){
     fd_set readfds;
@@ -65,6 +100,7 @@ lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
     }
+    this->registryCodec = this->createRegistryCodec();
 }
 
 unsigned int lobby::getPlayerCount(){

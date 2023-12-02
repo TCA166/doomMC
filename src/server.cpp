@@ -1,14 +1,16 @@
 #include "server.hpp"
+#include "player.hpp"
 #include <iostream>
 
-#include <sys/socket.h>
-#include <unistd.h>
-#include <sys/random.h>
-#include <arpa/inet.h>
-#include <netdb.h>
-#include <fcntl.h>
-
-#include <string.h>
+extern  "C"{
+    #include <sys/socket.h>
+    #include <unistd.h>
+    #include <sys/random.h>
+    #include <arpa/inet.h>
+    #include <netdb.h>
+    #include <fcntl.h>
+    #include <string.h>
+}
 
 #define PORT 8080
 #define MAX_LISTEN 5
@@ -78,7 +80,8 @@ void server::addToLobby(client* c){
     }
     for(int i = 0; i < this->lobbyCount; i++){
         if(this->lobbies[i]->getPlayerCount() < this->lobbies[i]->getMaxPlayers()){
-            this->lobbies[i]->addPlayer((player*)c);
+            player* p = c->toPlayer();
+            this->lobbies[i]->addPlayer(p);
             return;
         }
     }
@@ -189,17 +192,19 @@ int main(int argc, char *argv[]){
                 while(!packetNull(p)){
                     res = c->handlePacket(&p);
                     if(res < 1 || c->getState() == PLAY_STATE){
+                        free(p.data);
                         break;
                     }
                     free(p.data);
                     p = c->getPacket();
                 }
-                if(!packetNull(p)){
-                    free(p.data);
-                }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
                     mainServer.disconnectClient(i);
                 }
+                else if(c->getState() == PLAY_STATE){
+                    delete c;
+                }
+
             }
         }
     }

@@ -1,8 +1,8 @@
 #include "client.hpp"
-#include <unistd.h>
 #include "server.hpp"
 
 extern "C" {
+    #include <unistd.h>
     #include <stdlib.h>
     #include <string.h>
     #include "../cJSON/cJSON.h"
@@ -147,4 +147,8 @@ state_t client::getState(){
 
 void client::setUsername(char* username) {
     this->username = username;
+}
+
+player* client::toPlayer(){
+    player* p = new player(this->serv, this->fd, this->state, this->username, this->compression, this->protocol);
 }
