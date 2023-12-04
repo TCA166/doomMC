@@ -3,6 +3,9 @@
 #define PLAYER_HPP
 
 #include "client.hpp"
+#include "weapons.hpp"
+
+#define MAX_WEAPONS 9
 
 class lobby;
 
@@ -16,19 +19,17 @@ class player : public client{
         */
         int handlePacket(packet* p);
         /*!
-         @brief Sets the weapons of the player
-         @param damage the damage of each weapon
-         @param maxAmmo the maximum ammo of each weapon
-         @param rateOfFire the rate of fire of each weapon
+         @brief Sets the ammo counts of the player
+         @param ammo the ammo counts to set
         */
-        void setWeapons(int damage[9], int maxAmmo[9], int rateOfFire[9]);
+        void setAmmo(struct ammo ammo[4]);
         /*!
-         @brief Sets the ammo of the player
-         @param ammo the ammo of each weapon
+         @brief Sets the weapons of the player, and sends the set inventory packet
+         @param weapons the weapons to set
         */
-        void setAmmo(int ammo[9]);
+        void setWeapons(struct weapon weapons[MAX_WEAPONS]);
         /*!
-         @brief Sets the health of the player
+         @brief Sets the health of the player and sends the approriate packet
          @param health the health of the player
         */
         void setHealth(int health);
@@ -40,10 +41,12 @@ class player : public client{
         */
         void setLocation(double x, double y, double z);
         /*!
-         @brief Deals some damage to the player
+         @brief Deals some damage to the player and sends the appropriate packet
          @param damage the amount to deal
+         @param eid the entity id of the damager
+         @param damageType the type of damage to deal
         */
-        void dealDamage(int damage);
+        void dealDamage(int damage, int32_t eid, int damageType);
         /*!
          @brief Sends a player message to this player
          @param message the message contents
@@ -64,10 +67,9 @@ class player : public client{
         bool onGround;
         float yaw, pitch;
         int health;
-        int damage[9];
-        int ammo[9];
-        int maxAmmo[9];
-        int rateOfFire[9];
+        struct weapon weapons[MAX_WEAPONS];
+        struct ammo* ammo;
+        int currentSlot;
         lobby* currentLobby;
         int32_t eid;
 };

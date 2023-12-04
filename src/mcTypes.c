@@ -448,3 +448,32 @@ bool cmpByteArray(byteArray* a, byteArray* b){
     }
     return memcmp(a->bytes, b->bytes, a->len) == 0;
 }
+
+size_t writeSlot(byte* buff, slot* s){
+    size_t offset = 0;
+    buff[offset] = s->present;
+    offset++;
+    if(s->present){
+        offset += writeVarInt(buff + offset, s->id);
+        buff[offset] = s->count;
+        offset++;
+        if(s->NBT != NULL){
+            struct buffer b = nbt_dump_binary(s->NBT);
+            memcpy(buff + offset, b.data, b.len);
+            offset += b.len;
+        }
+        else{
+            buff[offset] = TAG_INVALID;
+            offset++;
+        }
+    }
+    return offset;
+}
+
+size_t writeBigEndianFloat(byte* buff, float f){
+    return writeBigEndianInt(buff, f);
+}
+
+size_t writeBigEndianDouble(byte* buff, double d){
+    return writeBigEndianLong(buff, d);
+}

@@ -361,4 +361,28 @@ bitSet readBitSet(const byte* buff, int* index);
 */
 bool cmpByteArray(byteArray* a, byteArray* b);
 
+/*!
+ @brief Writes a slot to the buffer
+ @param buff the buffer to write to 
+ @param s the slot to write
+ @return the amount of bytes written
+*/
+size_t writeSlot(byte* buff, slot* s);
+
+/*!
+ @brief Writes a float to the buffer
+ @param buff the buffer to write to 
+ @param f the float to write
+ @return the amount of bytes written
+*/
+size_t writeBigEndianFloat(byte* buff, float f);
+
+/*!
+ @brief Writes a double to the buffer
+ @param buff the buffer to write to
+ @param d the double to write
+ @return the amount of bytes written
+*/
+size_t writeBigEndianDouble(byte* buff, double d);
+
 #endif

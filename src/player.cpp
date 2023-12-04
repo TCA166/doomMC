@@ -20,32 +20,65 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->health = 20;
 }
 
-void player::setWeapons(int damage[9], int maxAmmo[9], int rateOfFire[9]){
-    for(int i = 0; i < 9; i++){
-        this->damage[i] = damage[i];
-        this->maxAmmo[i] = maxAmmo[i];
-        this->rateOfFire[i] = rateOfFire[i];
+void player::setWeapons(struct weapon weapons[MAX_WEAPONS]){
+    memcpy(this->weapons, weapons, sizeof(struct weapon) * 9);
+    this->currentSlot = 0;
+    byte data[1 + (2 * MAX_VAR_INT) + (sizeof(slot) * 45)];
+    size_t offset = 0;
+    data[0] = 0; //window id
+    offset++;
+    offset += writeVarInt(data + offset, 0); //state id
+    offset += writeVarInt(data + offset, 45); //slot count
+    slot slots[45];
+    memset(slots, 0, sizeof(slot) * 45);
+    for(int i = 36; i < 44; i++){
+        slots[i].present = weapons[i - 36].owned;
+        slots[i].id = 1;
+        int weaponId = i - 36;
+        slots[i].count = this->ammo[weapons[weaponId].ammoId].count;
+        offset += writeSlot(data + offset, &slots[i]);
     }
-}
-
-void player::setAmmo(int ammo[9]){
-    for(int i = 0; i < 9; i++){
-        this->ammo[i] = ammo[i];
-    }
+    writeSlot(data + offset, &slots[36 + this->currentSlot]);
+    this->send(data, offset, SET_CONTAINER_CONTENT);
 }
 
 void player::setHealth(int health){
     this->health = health;
+    byte data[(sizeof(float) * 2) + MAX_VAR_INT];
+    size_t offset = 0;
+    offset += writeBigEndianFloat(data, (float)this->health);
+    offset += writeVarInt(data + offset, 20);
+    offset += writeBigEndianFloat(data + offset, 0);
+    this->send(data, offset, SET_HEALTH);
 }
 
 void player::setLocation(double x, double y, double z){
     this->x = x;
     this->y = y;
     this->z = z;
+    byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
+    size_t offset = 0;
+    offset += writeBigEndianDouble(data, this->x);
+    offset += writeBigEndianDouble(data + offset, this->y);
+    offset += writeBigEndianDouble(data + offset, this->z);
+    offset += writeBigEndianFloat(data + offset, this->yaw);
+    offset += writeBigEndianFloat(data + offset, this->pitch);
+    data[offset] = 0;
+    offset++;
+    this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
 }
 
-void player::dealDamage(int damage){
+void player::dealDamage(int damage, int32_t eid, int damageType){
     this->health -= damage;
+    byte data[1 + (MAX_VAR_INT * 5)];
+    size_t offset = 0;
+    offset += writeVarInt(data, this->eid);
+    offset += writeVarInt(data, damageType);
+    offset += writeVarInt(data + offset, eid);
+    offset += writeVarInt(data + offset, eid);
+    data[offset] = false;
+    offset++;
+    this->send(data, offset, DAMAGE_EVENT);
 }
 
 void player::sendMessage(char* message){
@@ -107,9 +140,11 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0); //portal cooldown
         int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
     }
-    {//then send Set Container Content
-        
-    }
+    //then send Set Container Content
+    this->ammo = (struct ammo*)ammunition;
+    this->setWeapons(weapons);
+    this->setHealth(20);
+    this->setLocation(0, 0, 0);
 }
 
 int player::handlePacket(packet* p){
