@@ -13,8 +13,8 @@ extern "C"{
 
 class lobby{
     public:
-        lobby(unsigned int maxPlayers, const struct weapon* weapons, const struct ammo* ammo);
-        lobby(unsigned int maxPlayers);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec);
         /*!
          @brief Adds a player to the lobby, and initializes the player inside the lobby
          @param p the player to add
@@ -44,7 +44,7 @@ class lobby{
          @brief Gets the registry codec
          @return the registry codec
         */
-        byteArray getRegistryCodec();
+        const byteArray* getRegistryCodec();
         /*!
          @brief Gets the weapons
          @return the weapons for this lobby instance
@@ -67,8 +67,7 @@ class lobby{
         */
         static void* monitorPlayers(lobby* thisLobby);
         struct timeval monitorTimeout; // the timeval struct used in monitorPlayers
-        byteArray registryCodec;
-        byteArray createRegistryCodec();
+        const byteArray* registryCodec;
         const struct weapon* weapons;
         const struct ammo* ammo;
 };

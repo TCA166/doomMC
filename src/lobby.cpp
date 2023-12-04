@@ -14,25 +14,8 @@ extern "C"{
 typedef void*(*thread)(void*);
 
 #define timeout {60, 0}
-#define templateRegistry "registryCodec.nbt"
 
-//TODO handle 1.20 change to NBT (root tag no name)
-byteArray lobby::createRegistryCodec(){
-    FILE* f = fopen(templateRegistry, "rb");
-    if(f == NULL){
-        perror("fopen");
-        return {NULL, 0};
-    }
-    fseek(f, 0, SEEK_END);
-    size_t len = ftell(f);
-    byte* data = (byte*)malloc(len);
-    fseek(f, 0, SEEK_SET);
-    fread(data, 1, len, f);
-    fclose(f);
-    return {data, len};
-}
-
-byteArray lobby::getRegistryCodec(){
+const byteArray* lobby::getRegistryCodec(){
     return this->registryCodec;
 }
 
@@ -84,7 +67,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const struct weapon* weapons, const struct ammo* ammo) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec){
     this->playerCount = 0;
     this->monitorTimeout = timeout; //60 seconds
     this->players = new player*[maxPlayers];
@@ -92,13 +75,9 @@ lobby::lobby(unsigned int maxPlayers, const struct weapon* weapons, const struct
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
     }
-    this->registryCodec = this->createRegistryCodec();
-    if(this->registryCodec.bytes == NULL){
-        throw "Failed to create registry codec";
-    }
 }
 
-lobby::lobby(unsigned int maxPlayers) : lobby(maxPlayers, doomWeapons, doomAmmunition){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition){
 
 }
 

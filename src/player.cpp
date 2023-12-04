@@ -112,8 +112,8 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->eid = eid++;
     { //send LOGIN_PLAY
         char* dimensionName = "minecraft:overworld";
-        byteArray registryCodec = this->currentLobby->getRegistryCodec();
-        byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec.len];
+        const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
+        byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
         size_t offset = writeBigEndianInt(data, eid);
         data[offset] = false; //not hardcore
         offset++;
@@ -124,8 +124,8 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + 7, 1);
         offset += writeString(data + offset, dimensionName, 19);
         //write the registry codec
-        memcpy(data + offset, registryCodec.bytes, registryCodec.len);
-        offset += registryCodec.len;
+        memcpy(data + offset, registryCodec->bytes, registryCodec->len);
+        offset += registryCodec->len;
         offset += writeString(data + offset, dimensionName, 19);
         offset += writeString(data + offset, dimensionName, 19);
         offset += writeBigEndianLong(data + offset, 0); //seed

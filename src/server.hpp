@@ -19,6 +19,7 @@ class server{
         lobby** lobbies;
         client** connected;
         const cJSON* message;
+        byteArray registryCodec;
     public:
         /*!
          @brief Gets the player count
@@ -46,8 +47,9 @@ class server{
          @param lobbyCount the number of lobbies
          @param maxConnected the maximum number of clients
          @param status the status message
+         @param registryCodec parsed template registry codec
         */
-        server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* status);
+        server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* status, nbt_node* registryCodec);
         /*!
          @brief Creates a new client instance
          @param socket the socket file descriptor associated with the client
@@ -68,6 +70,11 @@ class server{
          @param c the client to add to the lobby
         */
         void addToLobby(client* c);
+        /*!
+         @brief Gets the registry codec
+         @return the registry codec
+        */
+        const byteArray* getRegistryCodec();
 };
 
 #endif

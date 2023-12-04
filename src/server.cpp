@@ -10,6 +10,7 @@ extern  "C"{
     #include <netdb.h>
     #include <fcntl.h>
     #include <string.h>
+    #include "../cNBT/nbt.h"
 }
 
 #define PORT 8080
@@ -19,10 +20,14 @@ extern  "C"{
 
 #define MAX_CLIENTS 100
 
-server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message) : lobbyCount(lobbyCount), maxConnected(maxConnected){
+#define templateRegistry "registryCodec.nbt"
+
+server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec) : lobbyCount(lobbyCount), maxConnected(maxConnected){
+    buffer codec = nbt_dump_binary(registryCodec);
+    this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
     for(int i = 0; i < lobbyCount; i++){
-        lobby* l = new lobby(maxPlayers);
+        lobby* l = new lobby(maxPlayers, &this->registryCodec);
         this->lobbies[i] = l;
     }
     this->connectedCount = 0;
@@ -88,6 +93,10 @@ void server::addToLobby(client* c){
     //TODO what do do with the client if there are no lobbies with space
 }
 
+const byteArray* server::getRegistryCodec(){
+    return &this->registryCodec;
+}
+
 int main(int argc, char *argv[]){
     //socket that accepts new connections
     int masterSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -134,7 +143,26 @@ int main(int argc, char *argv[]){
         fread(statusJson, 1, statusSize, statusFile);
         fclose(statusFile);
     }
-    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson));
+    nbt_node* codec;
+    {
+        FILE* codecFile = fopen(templateRegistry, "rb");
+        if(codecFile == NULL){
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+        fseek(codecFile, 0, SEEK_END);
+        size_t codecSize = ftell(codecFile);
+        rewind(codecFile);
+        byte* codecData = (byte*)malloc(codecSize);
+        fread(codecData, 1, codecSize, codecFile);
+        fclose(codecFile);
+        codec = nbt_parse(codecData, codecSize);
+        if(codec == NULL){
+            perror("nbt_parse");
+            return EXIT_FAILURE;
+        }
+    }
+    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec);
     //set of socket descriptors
     fd_set readfds;
     while(true){
