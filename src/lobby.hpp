@@ -9,15 +9,11 @@ extern "C"{
 }
 
 #include "player.hpp"
-
-struct weaponSettings{
-    int damage;
-    int maxAmmo;
-    int rateOfFire;
-};
+#include "weapons.hpp"
 
 class lobby{
     public:
+        lobby(unsigned int maxPlayers, const struct weapon* weapons, const struct ammo* ammo);
         lobby(unsigned int maxPlayers);
         /*!
          @brief Adds a player to the lobby, and initializes the player inside the lobby
@@ -49,6 +45,16 @@ class lobby{
          @return the registry codec
         */
         byteArray getRegistryCodec();
+        /*!
+         @brief Gets the weapons
+         @return the weapons for this lobby instance
+        */
+        const struct weapon* getWeapons();
+        /*!
+         @brief Gets the ammo
+         @return the ammo for this lobby instance
+        */
+        const struct ammo* getAmmo();
     private:
         pthread_t monitor;
         pthread_t main;
@@ -63,6 +69,8 @@ class lobby{
         struct timeval monitorTimeout; // the timeval struct used in monitorPlayers
         byteArray registryCodec;
         byteArray createRegistryCodec();
+        const struct weapon* weapons;
+        const struct ammo* ammo;
 };
 
 #endif

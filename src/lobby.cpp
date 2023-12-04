@@ -1,5 +1,6 @@
 #include "lobby.hpp"
 #include "player.hpp"
+#include "doom.hpp"
 
 extern "C"{
     #include <stdlib.h>
@@ -83,7 +84,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
+lobby::lobby(unsigned int maxPlayers, const struct weapon* weapons, const struct ammo* ammo) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo){
     this->playerCount = 0;
     this->monitorTimeout = timeout; //60 seconds
     this->players = new player*[maxPlayers];
@@ -95,6 +96,10 @@ lobby::lobby(unsigned int maxPlayers) : maxPlayers(maxPlayers){
     if(this->registryCodec.bytes == NULL){
         throw "Failed to create registry codec";
     }
+}
+
+lobby::lobby(unsigned int maxPlayers) : lobby(maxPlayers, doomWeapons, doomAmmunition){
+
 }
 
 unsigned int lobby::getPlayerCount(){
@@ -137,4 +142,12 @@ void lobby::removePlayer(player* p){
             break;
         }
     }
+}
+
+const struct weapon* lobby::getWeapons(){
+    return this->weapons;
+}
+
+const struct ammo* lobby::getAmmo(){
+    return this->ammo;
 }

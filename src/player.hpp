@@ -5,8 +5,6 @@
 #include "client.hpp"
 #include "weapons.hpp"
 
-#define MAX_WEAPONS 9
-
 class lobby;
 
 class player : public client{
@@ -19,15 +17,11 @@ class player : public client{
         */
         int handlePacket(packet* p);
         /*!
-         @brief Sets the ammo counts of the player
-         @param ammo the ammo counts to set
-        */
-        void setAmmo(struct ammo ammo[4]);
-        /*!
-         @brief Sets the weapons of the player, and sends the set inventory packet
+         @brief Sets the weapons and ammo of the player, and sends the set inventory packet
          @param weapons the weapons to set
+         @param ammo the ammo to set
         */
-        void setWeapons(struct weapon weapons[MAX_WEAPONS]);
+        void setWeapons(const struct weapon* weapons, const struct ammo* ammo);
         /*!
          @brief Sets the health of the player and sends the approriate packet
          @param health the health of the player
@@ -67,7 +61,7 @@ class player : public client{
         bool onGround;
         float yaw, pitch;
         int health;
-        struct weapon weapons[MAX_WEAPONS];
+        struct weapon* weapons;
         struct ammo* ammo;
         int currentSlot;
         lobby* currentLobby;
