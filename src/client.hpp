@@ -5,8 +5,8 @@
 class player;
 
 extern "C" {
-    #include "mcTypes.h"
-    #include "networkingMc.h"
+    #include "C/mcTypes.h"
+    #include "C/networkingMc.h"
 }
 
 typedef enum{

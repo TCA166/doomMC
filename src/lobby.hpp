@@ -5,7 +5,7 @@
 extern "C"{
     #include <pthread.h>
     #include <sys/select.h>
-    #include "mcTypes.h"
+    #include "C/mcTypes.h"
 }
 
 #include "player.hpp"

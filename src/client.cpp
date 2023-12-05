@@ -151,4 +151,5 @@ void client::setUsername(char* username) {
 
 player* client::toPlayer(){
     player* p = new player(this->serv, this->fd, this->state, this->username, this->compression, this->protocol);
+    return p;
 }

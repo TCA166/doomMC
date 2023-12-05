@@ -11,11 +11,16 @@ player.o: src/player.cpp
 client.o: src/client.cpp
 	g++ $(CFLAGS) -c src/client.cpp
 
-mcTypes.o: src/mcTypes.c
-	gcc $(CFLAGS) -c src/mcTypes.c
+maps.o : src/map/map.cpp src/map/udmf.cpp
+	g++ $(CFLAGS) -c src/map/map.cpp
+	g++ $(CFLAGS) -c src/map/udmf.cpp
+	ld -relocatable map.o udmf.o -o maps.o
 
-networkingMc.o: src/networkingMc.c
-	gcc $(CFLAGS) -c src/networkingMc.c
+mcTypes.o: src/C/mcTypes.c
+	gcc $(CFLAGS) -c src/C/mcTypes.c
+
+networkingMc.o: src/C/networkingMc.c
+	gcc $(CFLAGS) -c src/C/networkingMc.c
 
 cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c cNBT/nbt_loading.c
 	gcc cNBT/nbt_loading.c -o cNBT/nbt_loading.o -c $(CFLAGS)
