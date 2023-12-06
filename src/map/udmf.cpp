@@ -137,11 +137,12 @@ udmf::udmf(const char* path){
         thing* things = NULL;
         size_t thingCount = 0;
         //find all the blocks
-        std::string contentsStr(contents);
-        foreachRegexMatch(R"([A-Za-z_]+[A-Za-z0-9_]*[\s]*?{([\s\S]*?)})", block, contentsStr){
+        std::string contentsStr(contents, contentsSize);
+        foreachRegexMatch(R"([A-Za-z_]+[A-Za-z0-9_]*[\s]*?\{([\s\S]*?)\})", block, contentsStr){
             const char* typeName = blockMatch.c_str() - 1;
             size_t typeNameLen = 0;
             //find the block type
+            //TODO fix this, doesn't work that well
             while(*typeName == ' '){
                 typeName--;
             }

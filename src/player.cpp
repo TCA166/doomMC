@@ -58,20 +58,28 @@ void player::setHealth(int health){
 }
 
 void player::setLocation(double x, double y, double z){
-    this->x = x;
-    this->y = y;
-    this->z = z;
-    byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
-    size_t offset = 0;
-    offset += writeBigEndianDouble(data + offset, this->x);
-    offset += writeBigEndianDouble(data + offset, this->y);
-    offset += writeBigEndianDouble(data + offset, this->z);
-    offset += writeBigEndianFloat(data + offset, this->yaw);
-    offset += writeBigEndianFloat(data + offset, this->pitch);
-    data[offset] = 0;
-    offset++;
-    offset += writeVarInt(data + offset, 0);
-    this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
+    {
+        byte data[MAX_VAR_INT * 2];
+        size_t offset = writeVarInt(data, (int32_t)x / 16);
+        offset += writeVarInt(data + offset, (int32_t)z / 16);
+        this->send(data, offset, SET_CENTER_CHUNK);
+    }
+    {
+        this->x = x;
+        this->y = y;
+        this->z = z;
+        byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
+        size_t offset = 0;
+        offset += writeBigEndianDouble(data + offset, this->x);
+        offset += writeBigEndianDouble(data + offset, this->y);
+        offset += writeBigEndianDouble(data + offset, this->z);
+        offset += writeBigEndianFloat(data + offset, this->yaw);
+        offset += writeBigEndianFloat(data + offset, this->pitch);
+        data[offset] = 0;
+        offset++;
+        offset += writeVarInt(data + offset, 0);
+        this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
+    }
 }
 
 void player::dealDamage(int damage, int32_t eid, int damageType){
@@ -146,7 +154,32 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0); //portal cooldown
         int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
     }
-    //https://wiki.vg/Protocol_FAQ#I_think_I.27ve_done_everything_right.2C_but.E2.80.A6
+    //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F
+    {//send set held item
+        byte data[1];
+        data[0] = this->heldSlot;
+        this->send(data, 1, SET_HELD_ITEM);
+    }
+    {//send update recipies
+        byte data[MAX_VAR_INT];
+        size_t offset = writeVarInt(data, 0);
+        this->send(data, offset, UPDATE_RECIPES);
+    }
+    //set op permisssion level
+    {
+        byte data[sizeof(int32_t) + 1];
+        size_t offset = writeBigEndianInt(data, this->eid);
+        data[offset] = 24;
+        offset++;
+        this->send(data, offset, ENTITY_EVENT);
+    }
+    //send commands
+    {
+        byte data[MAX_VAR_INT * 2];
+        size_t offset = writeVarInt(data, 0);
+        offset += writeVarInt(data + offset, 0);
+        this->send(data, offset, COMMANDS);
+    }
     //send chunk data and update light
     {
         this->send(NULL, 0, BUNDLE_DELIMITER);
@@ -180,9 +213,12 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(0, 0, 0);
+    //update player list
+    //TODO
 }
 
 int player::handlePacket(packet* p){
+    //TODO sync and expand
     if(this->state != PLAY_STATE){
         return -1;
     }
@@ -190,7 +226,7 @@ int player::handlePacket(packet* p){
     switch(p->packetId){
         case CHAT_MESSAGE:{
             char* message = readString(p->data, &offset);
-            
+            //TODO handle
             break;
         }
         case SET_PLAYER_POSITION:{
@@ -281,4 +317,5 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     offset += writeVarInt(data + offset, 0); //sky light array length
     offset += writeVarInt(data + offset, 0);
     this->send(data, offset, CHUNK_DATA_AND_UPDATE_LIGHT);
+    free(data);
 }
