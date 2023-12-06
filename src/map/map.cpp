@@ -20,8 +20,10 @@ unsigned int map::getLength(){
     return this->length;
 }
 
-unsigned int* map::getPalette(){
+int32_t* map::getPalette(){
     return this->palette;
 }
 
-
+size_t map::getPaletteSize(){
+    return this->paletteSize;
+}

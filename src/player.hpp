@@ -5,6 +5,10 @@
 #include "client.hpp"
 #include "weapons.hpp"
 
+extern "C"{
+    #include "C/mcTypes.h"
+}
+
 class lobby;
 
 class player : public client{
@@ -66,6 +70,7 @@ class player : public client{
         int currentSlot;
         lobby* currentLobby;
         int32_t eid;
+        void sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ);
 };
 
 #endif

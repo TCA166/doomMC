@@ -1,6 +1,6 @@
 
-all: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o cJSON.o -lpthread -lz
+all: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o
+	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o -lpthread -lz
 
 lobby.o: src/lobby.cpp
 	g++ $(CFLAGS) -c src/lobby.cpp
@@ -11,10 +11,11 @@ player.o: src/player.cpp
 client.o: src/client.cpp
 	g++ $(CFLAGS) -c src/client.cpp
 
-maps.o : src/map/map.cpp src/map/udmf.cpp
+maps.o : src/map/map.cpp src/map/udmf.cpp src/map/minecraftMap.cpp
 	g++ $(CFLAGS) -c src/map/map.cpp
 	g++ $(CFLAGS) -c src/map/udmf.cpp
-	ld -relocatable map.o udmf.o -o maps.o
+	g++ $(CFLAGS) -c src/map/minecraftMap.cpp
+	ld -relocatable map.o udmf.o minecraftMap.o -o maps.o
 
 mcTypes.o: src/C/mcTypes.c
 	gcc $(CFLAGS) -c src/C/mcTypes.c

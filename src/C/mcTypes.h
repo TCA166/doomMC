@@ -46,6 +46,8 @@ typedef int64_t position;
 //Converts a set of ints into a position type
 #define toPosition(X, Y, Z) ((position)((int)(X) & 0x3FFFFFF) << 38) | ((position)((int)(Z) & 0x3FFFFFF) << 12) | (position)((int)(Y) & 0xFFF)
 
+#define statesFormula(x, y, z) (y*16*16) + (z*16) + x
+
 /*!
  @struct byteArray
  @brief An array with an attached size_t
@@ -348,12 +350,37 @@ int64_t readVarLong(const byte* buff, int* index);
 palettedContainer readPalettedContainer(const byte* buff, int* index, const int bitsLowest, const int bitsThreshold, const size_t globalPaletteSize);
 
 /*!
+ @brief Writes a palettedContainer to the buffer
+ @param container the palettedContainer to write
+ @param globalPaletteSize the size of the globalPallete the palette in this palettedContainer will point to
+ @return the encoded palettedContainer
+*/
+byteArray writePalletedContainer(palettedContainer* container, size_t globalPaletteSize);
+
+/*!
+ @brief Writes a packed array to the buffer
+ @param val the array to write
+ @param len the length of the array
+ @param bpe the amount of bits per element
+ @return byteArray containing the encoded array
+*/
+byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe);
+
+/*!
  @brief reads a java like bitset from the buffer at index
  @param buff the buffer to read from
  @param index the pointer to the index at which the value should be read, is incremented by the number of bytes read. Can be NULL, at which point index=0
  @return the encoded bitSet
 */
 bitSet readBitSet(const byte* buff, int* index);
+
+/*!
+ @brief Writes a bitSet to the buffer
+ @param buff the buffer to write to
+ @param set the bitSet to write
+ @return the amount of bytes written
+*/
+size_t writeBitSet(byte* buff, const bitSet* set);
 
 /*!
  @brief compares the two byteArrays

@@ -4,6 +4,7 @@
 
 extern "C"{
     #include <string.h>
+    #include <stdlib.h>
 }
 
 player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
@@ -148,7 +149,22 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     //https://wiki.vg/Protocol_FAQ#I_think_I.27ve_done_everything_right.2C_but.E2.80.A6
     //send chunk data and update light
     {
-        //TODO
+        this->send(NULL, 0, BUNDLE_DELIMITER);
+        minecraftMap* m = (minecraftMap*)this->currentLobby->getMap();
+        //get width in chunks
+        int chunkWidth = m->getWidth() / 16;
+        //get length in chunks
+        int chunkLength = m->getLength() / 16;
+        palettedContainer sections[sectionMax];
+        for(int chunkX = 0; chunkX < chunkWidth; chunkX++){
+            for(int chunkZ = 0; chunkZ < chunkLength; chunkZ++){
+                for(int i = 0; i < sectionMax; i++){
+                    sections[i] = m->getSection(chunkX, i, chunkZ);
+                }
+                this->sendChunk(sections, sectionMax, chunkX, chunkZ);
+            }
+        }
+        this->send(NULL, 0, BUNDLE_DELIMITER);
     }
     //send set default spawn position
     {
@@ -218,4 +234,51 @@ int player::handlePacket(packet* p){
         
     }
     return 1;
+}
+
+void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){
+    const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 3);
+    byte* data = (byte*)malloc((sizeof(int32_t) * 2) + 1 + (sizeof(int16_t)));
+    size_t offset = 0;
+    offset += writeBigEndianInt(data + offset, chunkX);
+    offset += writeBigEndianInt(data + offset, chunkZ);
+    //we skip the heightmaps NBT
+    data[offset] = TAG_INVALID;
+    offset++;
+    //foreach possible section
+    for(int i = 0; i < sectionMax; i++){
+        palettedContainer* section = sections + i;
+        int16_t nonAir = 0;
+        for(int j = 0; j < 4096; j++){
+            if(section->states[j] != 0){
+                nonAir++;
+            }
+        }
+        offset += writeBigEndianShort(data + offset, nonAir);
+        byteArray blocks = writePalletedContainer(section, 0);
+        palettedContainer emptyBiomes = {1, {0}, NULL};
+        byteArray biomes = writePalletedContainer(&emptyBiomes, 0);
+        data = (byte*)realloc(data, offset + blocks.len + biomes.len + neededLater);
+        memcpy(data + offset, blocks.bytes, blocks.len);
+        offset += blocks.len;
+        free(blocks.bytes);
+        memcpy(data + offset, biomes.bytes, biomes.len);
+        offset += biomes.len;
+        free(biomes.bytes);
+    }
+    //block entities
+    offset += writeVarInt(data + offset, 0);
+    {//bit sets for sky light
+        int64_t zero = 0;
+        int64_t one = 0xFFFFFFFFFFFFFFFF; //16 times F
+        const bitSet empty = {1, &zero};
+        const bitSet full = {1, &one};
+        offset += writeBitSet(data + offset, &empty);
+        offset += writeBitSet(data + offset, &empty);
+        offset += writeBitSet(data + offset, &full);
+        offset += writeBitSet(data + offset, &full);
+    }
+    offset += writeVarInt(data + offset, 0); //sky light array length
+    offset += writeVarInt(data + offset, 0);
+    this->send(data, offset, CHUNK_DATA_AND_UPDATE_LIGHT);
 }

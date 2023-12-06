@@ -431,6 +431,77 @@ palettedContainer readPalettedContainer(const byte* buff, int* index, const int 
     return result;
 }
 
+static size_t writeIntToPackedArray(uint64_t* buff, int value, size_t offset, uint8_t bitsPerEntry) {
+    uint64_t mask = ((1ULL << bitsPerEntry) - 1) << offset;
+    uint64_t maskedValue = (uint64_t)(value & ((1 << bitsPerEntry) - 1));
+    *buff = (*buff & ~mask) | (maskedValue << offset);
+    return offset + bitsPerEntry;
+}
+
+byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe){
+    byteArray result = nullByteArray;
+    const size_t longCount = (len / 64) * bpe;
+    result.bytes = calloc(longCount, sizeof(uint64_t));
+    const int perLong = (int)((len / 64) / bpe);
+    result.len += writeVarInt(result.bytes + result.len, longCount);
+    for(int i = 0; i < longCount; i++){
+        uint64_t l = 0;
+        for(int n = 0; n < perLong; n++){
+            result.len += writeIntToPackedArray(&l, val[i * perLong + n], n * bpe, bpe);
+        }
+        result.len += writeBigEndianLong(result.bytes + result.len, l);
+    }
+    return result;
+}
+
+byteArray writePalletedContainer(palettedContainer* container, size_t globalPaletteSize){
+    byteArray result = nullByteArray;
+    switch(container->paletteSize){
+        case 1:{ //pallette is single valued
+            result.bytes = malloc(1 + (MAX_VAR_INT * 2));
+            result.bytes[result.len] = 0;
+            result.len++;
+            result.len += writeVarInt(result.bytes + result.len, container->palette[0]);
+            result.len += writeVarInt(result.bytes + result.len, 0);
+            break;
+        }
+        default:{
+            if(container->paletteSize <= 255){
+                result.bytes = malloc(1 + (MAX_VAR_INT * container->paletteSize));
+                byte bpe = (byte)ceilf(log2f((float)container->paletteSize));
+                if(bpe < 4){
+                    bpe = 4;
+                }
+                result.bytes[result.len] = bpe;
+                result.len++;
+                result.len += writeVarInt(result.bytes + result.len, container->paletteSize);
+                for(int i = 0; i < container->paletteSize; i++){
+                    result.len += writeVarInt(result.bytes + result.len, container->palette[i]);
+                }
+                byteArray states = writePackedArray(container->states, 4096, bpe);
+                result.bytes = realloc(result.bytes, 1 + states.len + result.len);
+                memcpy(result.bytes + result.len, states.bytes, states.len);
+                free(states.bytes);
+                result.len += states.len;
+                break;
+            }   
+            //we move on to case 0 which means writing the data
+        }
+        case 0:{ //pallete is empty, the global pallete does everything
+            byte bpe = (byte)ceilf(log2f((float)globalPaletteSize));
+            byteArray states = writePackedArray(container->states, 4096, bpe);
+            result.bytes = malloc(1 + states.len);
+            result.bytes[result.len] = bpe;
+            result.len++;
+            memcpy(result.bytes + result.len, states.bytes, states.len);
+            free(states.bytes);
+            result.len += states.len;
+            break;
+        }
+    }
+    return result;
+}
+
 bitSet readBitSet(const byte* buff, int* index){
     getIndex(index)
     bitSet result = {};
@@ -440,6 +511,14 @@ bitSet readBitSet(const byte* buff, int* index){
         result.data[i] = readBigEndianLong(buff, index);
     }
     return result;
+}
+
+size_t writeBitSet(byte* buff, const bitSet* set){
+    size_t offset = writeVarInt(buff, set->length);
+    for(int i = 0; i < set->length; i++){
+        offset += writeBigEndianLong(buff + offset, set->data[i]);
+    }
+    return offset;
 }
 
 bool cmpByteArray(byteArray* a, byteArray* b){

@@ -67,7 +67,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const minecraftMap* map) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), map(map){
     this->playerCount = 0;
     this->monitorTimeout = timeout; //60 seconds
     this->players = new player*[maxPlayers];
@@ -77,7 +77,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition, map){
 
 }
 
@@ -129,4 +129,8 @@ const struct weapon* lobby::getWeapons(){
 
 const struct ammo* lobby::getAmmo(){
     return this->ammo;
+}
+
+const minecraftMap* lobby::getMap(){
+    return this->map;
 }

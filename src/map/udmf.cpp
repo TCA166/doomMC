@@ -88,6 +88,7 @@ static std::string getMatch(const char* property, std::string hay){
 
 udmf::udmf(const char* path){
     char* contents;
+    size_t contentsSize;
     //open the file and read it's contents
     {
         FILE* f = fopen(path, "r");
@@ -95,16 +96,16 @@ udmf::udmf(const char* path){
             throw "Could not open file";
         }
         fseek(f, 0, SEEK_END);
-        unsigned int size = ftell(f);
+        contentsSize = ftell(f);
         fseek(f, 0, SEEK_SET);
-        contents = (char*)malloc(size);
-        fread(contents, 1, size, f);
+        contents = (char*)malloc(contentsSize);
+        fread(contents, 1, contentsSize, f);
         fclose(f);
     }
     //parse the file
     {
         //remove all comments
-        for(unsigned int i = 0; i < strlen(contents); i++){
+        for(unsigned int i = 0; i < contentsSize; i++){
             if(contents[i] == '/'){
                 if(contents[i + 1] == '/'){
                     while(contents[i] != '\n'){
@@ -233,8 +234,8 @@ udmf::udmf(const char* path){
         if(minY < 0){
             yVector = -minY;
         }
-        length = 0; //max Y value of vectors
-        width = 0; //max X value
+        this->length = 0; //max Y value of vectors
+        this->width = 0; //max X value
         //move the vertices to the grid
         for(size_t i = 0; i < vertexCount; i++){
             vertex* vertex = vertices + i;
@@ -259,7 +260,7 @@ udmf::udmf(const char* path){
         if(minHeight < 0){
             heightVector = -minHeight;
         }
-        height = 0;
+        this->height = 0;
         //get height from sectors
         for(size_t i = 0; i < sectorCount; i++){
             mapSector* sector = sectors + i;
@@ -269,16 +270,17 @@ udmf::udmf(const char* path){
             }
         }
         //allocate blocks
-        blocks = (unsigned int***)malloc(width * sizeof(unsigned int**));
+        this->blocks = (int32_t***)malloc(width * sizeof(int32_t**));
         for(unsigned int i = 0; i < width; i++){
-            blocks[i] = (unsigned int**)malloc(height * sizeof(unsigned int*));
+            this->blocks[i] = (int32_t**)malloc(height * sizeof(int32_t*));
             for(unsigned int j = 0; j < height; j++){
-                blocks[i][j] = (unsigned int*)calloc(length, sizeof(unsigned int));
+                this->blocks[i][j] = (int32_t*)calloc(length, sizeof(int32_t));
             }
         }
         //allocate palette
-        palette = (unsigned int*)calloc(2, sizeof(unsigned int));
-        palette[1] = 1;
+        this->palette = (int32_t*)calloc(2, sizeof(int32_t));
+        this->paletteSize = 2;
+        this->palette[1] = 1;
         //foreach linedef
         for(size_t i = 0; i < linedefCount; i++){
             const linedef* linedef = linedefs + i;
@@ -287,16 +289,16 @@ udmf::udmf(const char* path){
 
             //get the front sector
             mapSector* front = sectors + (sidedefs + linedef->sidefront)->sector;
-            blocks[start->x][front->heightfloor][start->y] = 1;
+            this->blocks[start->x][front->heightfloor][start->y] = 1;
             if(front->heightceiling > front->heightfloor){
-                blocks[start->x][front->heightceiling][start->y] = 1;
+                this->blocks[start->x][front->heightceiling][start->y] = 1;
             }
             //get the back sector
             if(linedef->sideback < 0){
                 mapSector* end = sectors + (sidedefs + linedef->sideback)->sector;
-                blocks[start->x][end->heightfloor][start->y] = 1;
+                this->blocks[start->x][end->heightfloor][start->y] = 1;
                 if(end->heightceiling > end->heightfloor){
-                    blocks[start->x][end->heightceiling][start->y] = 1;
+                    this->blocks[start->x][end->heightceiling][start->y] = 1;
                 }
             }
         }
@@ -309,3 +311,7 @@ udmf::udmf(const char* path){
     }
 }
 
+udmf::~udmf(){
+    free(this->blocks);
+    free(this->palette);
+}

@@ -1,6 +1,8 @@
 #include "server.hpp"
 #include "player.hpp"
 #include <iostream>
+#include "map/udmf.hpp"
+#include "map/minecraftMap.hpp"
 
 extern  "C"{
     #include <sys/socket.h>
@@ -22,12 +24,16 @@ extern  "C"{
 
 #define templateRegistry "registryCodec.nbt"
 
+#define mapFolder "maps/"
+
 server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec) : lobbyCount(lobbyCount), maxConnected(maxConnected){
     buffer codec = nbt_dump_binary(registryCodec);
     this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
     for(int i = 0; i < lobbyCount; i++){
-        lobby* l = new lobby(maxPlayers, &this->registryCodec);
+        udmf doomMap = udmf(mapFolder "TEXTMAP.txt");
+        minecraftMap* lobbyMap = new minecraftMap((map*)&doomMap);
+        lobby* l = new lobby(maxPlayers, &this->registryCodec, lobbyMap);
         this->lobbies[i] = l;
     }
     this->connectedCount = 0;

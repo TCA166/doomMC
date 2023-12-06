@@ -8,13 +8,16 @@ extern "C"{
     #include "C/mcTypes.h"
 }
 
+#define sectionMax 24
+
 #include "player.hpp"
 #include "weapons.hpp"
+#include "map/minecraftMap.hpp"
 
 class lobby{
     public:
-        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo);
-        lobby(unsigned int maxPlayers, const byteArray* registryCodec);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammom, const minecraftMap* map);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map);
         /*!
          @brief Adds a player to the lobby, and initializes the player inside the lobby
          @param p the player to add
@@ -55,6 +58,11 @@ class lobby{
          @return the ammo for this lobby instance
         */
         const struct ammo* getAmmo();
+        /*!
+         @brief Gets the associated map
+         @return the map for this lobby instance
+        */
+        const minecraftMap* getMap();
     private:
         pthread_t monitor;
         pthread_t main;
@@ -70,6 +78,7 @@ class lobby{
         const byteArray* registryCodec;
         const struct weapon* weapons;
         const struct ammo* ammo;
+        const minecraftMap* map;
 };
 
 #endif

@@ -6,6 +6,7 @@
 class udmf : private map{
     public:
         udmf(const char* path);
+        virtual ~udmf();
     private:
 
 };

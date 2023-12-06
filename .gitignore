@@ -33,5 +33,7 @@
 server
 
 #vscode
-
 .vscode
+
+#test files
+maps/*
