@@ -9,9 +9,9 @@ class map{
         virtual unsigned int* getPalette();
         virtual unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z);
     protected:
-        unsigned int width;
-        unsigned int height;
-        unsigned int length;
+        unsigned int width; //x
+        unsigned int height; //y
+        unsigned int length;  //z
         unsigned int* palette;
         unsigned int*** blocks; //nullable 3d array of palette pointers
 };
