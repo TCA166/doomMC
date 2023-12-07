@@ -117,12 +117,20 @@ int client::handlePacket(packet* p){
             }
             else if(p->packetId == LOGIN_ACKNOWLEDGED){
                 this->state = CONFIG_STATE;
-                this->send(NULL, 0, 0x02);
-                this->state = PLAY_STATE;
-                this->serv->addToLobby(this);
+                this->sendRegistryCodec();
+                this->sendTags();
+                this->sendFeatureFlags();
+                this->send(NULL, 0, FINISH_CONFIGURATION);
             }
             else{
                 return 0;
+            }
+            break;
+        }
+        case CONFIG_STATE:{
+            if(p->packetId == FINISH_CONFIGURATION_2){
+                this->state = PLAY_STATE;
+                this->serv->addToLobby(this);
             }
             break;
         }
@@ -152,4 +160,37 @@ void client::setUsername(char* username) {
 player* client::toPlayer(){
     player* p = new player(this->serv, this->fd, this->state, this->username, this->compression, this->protocol);
     return p;
+}
+
+void client::sendRegistryCodec(){
+    if(this->state != CONFIG_STATE){
+        throw "Invalid state";
+    }
+    const byteArray* codec = this->serv->getRegistryCodec();
+    byte data[codec->len];
+    memcpy(data, codec->bytes, codec->len);
+    this->send(data, codec->len, REGISTRY_DATA);
+}
+
+void client::sendFeatureFlags(){
+    const char* minecraftVanillaFlag = "minecraft:vanilla";
+    byte data[(MAX_VAR_INT * 2) + sizeof(minecraftVanillaFlag)];
+    size_t offset = writeVarInt(data, 1);
+    offset += writeString(data + offset, minecraftVanillaFlag, sizeof(minecraftVanillaFlag));
+    if(protocol > NO_CONFIG){
+        this->send(data, offset, FEATURE_FLAGS);
+    }
+    else{
+        this->send(data, offset, FEATURE_FLAGS_PLAY);
+    }
+}
+
+void client::sendTags(){
+    const char* blockTag = "minecraft:block";
+    const char* indestructibleTag = "features_cannot_replace";
+    byte data[MAX_VAR_INT + sizeof(indestructibleTag)];
+    size_t offset = writeVarInt(data, 1);
+    offset += writeString(data + offset, blockTag, sizeof(blockTag));
+    offset += writeString(data + offset, indestructibleTag, sizeof(indestructibleTag));
+    //TODO figure out a specific list of allowed block ids on the server
 }

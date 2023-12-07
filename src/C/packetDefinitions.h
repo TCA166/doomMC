@@ -24,6 +24,26 @@
 #define ENCRYPTION_RESPONSE 0x01 //Bound to Server during login. https://wiki.vg/Protocol#Encryption_Response
 #define LOGIN_PLUGIN_RESPONSE 0x02 //Bound to Server during login. https://wiki.vg/Protocol#Login_Plugin_Response
 #define LOGIN_ACKNOWLEDGED 0x03 //Bound to Server during login. https://wiki.vg/Protocol#Login_Acknowledged
+#define LOGIN_ACKNOWLEDGED 0x03 //Bound to Server during login. https://wiki.vg/Protocol#Login_Acknowledged
+
+//Configuration packets
+
+#define CLIENTBOUND_PLUGIN_MESSAGE_CONFIGURATION 0x00 //Bound to Client during configuration. https://wiki.vg/Protocol#Clientbound_Plugin_Message_(configuration)
+#define DISCONNECT_CONFIGURATION 0x01 //Bound to Client during configuration. https://wiki.vg/Protocol#Disconnect_(configuration)
+#define FINISH_CONFIGURATION 0x02 //Bound to Client during configuration. https://wiki.vg/Protocol#Finish_Configuration
+#define CLIENTBOUND_KEEP_ALIVE_CONFIGURATION 0x03 //Bound to Client during configuration. https://wiki.vg/Protocol#Clientbound_Keep_Alive_(configuration)
+#define PING_CONFIGURATION 0x04 //Bound to Client during configuration. https://wiki.vg/Protocol#Ping_(configuration)
+#define REGISTRY_DATA 0x05 //Bound to Client during configuration. https://wiki.vg/Protocol#Registry_Data
+#define REMOVE_RESOURCE_PACK_CONFIGURATION 0x06 //Bound to Client during configuration. https://wiki.vg/Protocol#Remove_Resource_Pack_(configuration)
+#define ADD_RESOURCE_PACK_CONFIGURATION 0x07 //Bound to Client during configuration. https://wiki.vg/Protocol#Add_Resource_Pack_(configuration)
+#define FEATURE_FLAGS 0x08 //Bound to Client during configuration. https://wiki.vg/Protocol#Feature_Flags
+#define UPDATE_TAGS 0x09 //Bound to Client during configuration. https://wiki.vg/Protocol#Update_Tags
+#define CLIENT_INFORMATION_CONFIGURATION 0x00 //Bound to Server during configuration. https://wiki.vg/Protocol#Client_Information_(configuration)
+#define SERVERBOUND_PLUGIN_MESSAGE_CONFIGURATION 0x01 //Bound to Server during configuration. https://wiki.vg/Protocol#Serverbound_Plugin_Message_(configuration)
+#define FINISH_CONFIGURATION_2 0x02 //Bound to Server during configuration. https://wiki.vg/Protocol#Finish_Configuration_2
+#define SERVERBOUND_KEEP_ALIVE_CONFIGURATION 0x03 //Bound to Server during configuration. https://wiki.vg/Protocol#Serverbound_Keep_Alive_(configuration)
+#define PONG_CONFIGURATION 0x04 //Bound to Server during configuration. https://wiki.vg/Protocol#Pong_(configuration)
+#define RESOURCE_PACK_RESPONSE_CONFIGURATION 0x05 //Bound to Server during configuration. https://wiki.vg/Protocol#Resource_Pack_Response_(configuration)
 
 //Play packets
 
@@ -134,10 +154,10 @@
 #define TELEPORT_ENTITY 0x68 //Bound to Client during play. https://wiki.vg/Protocol#Teleport_Entity
 #define UPDATE_ADVANCEMENTS 0x69 //Bound to Client during play. https://wiki.vg/Protocol#Update_Advancements
 #define UPDATE_ATTRIBUTES 0x6A //Bound to Client during play. https://wiki.vg/Protocol#Update_Attributes
-#define FEATURE_FLAGS 0x6B //Bound to Client during play. https://wiki.vg/Protocol#Feature_Flags
+#define FEATURE_FLAGS_PLAY 0x6B //Bound to Client during play. https://wiki.vg/Protocol#Feature_Flags
 #define ENTITY_EFFECT 0x6C //Bound to Client during play. https://wiki.vg/Protocol#Entity_Effect
 #define UPDATE_RECIPES 0x6D //Bound to Client during play. https://wiki.vg/Protocol#Update_Recipes
-#define UPDATE_TAGS 0x6E //Bound to Client during play. https://wiki.vg/Protocol#Update_Tags
+#define UPDATE_TAGS_PLAY 0x6E //Bound to Client during play. https://wiki.vg/Protocol#Update_Tags
 #define CONFIRM_TELEPORTATION 0x00 //Bound to Server during play. https://wiki.vg/Protocol#Confirm_Teleportation
 #define QUERY_BLOCK_ENTITY_TAG 0x01 //Bound to Server during play. https://wiki.vg/Protocol#Query_Block_Entity_Tag
 #define CHANGE_DIFFICULTY_2 0x02 //Bound to Server during play. https://wiki.vg/Protocol#Change_Difficulty_2

@@ -29,6 +29,10 @@ class client{
         UUID_t uuid; //the uuid of the client
     private:
         server* serv;
+        /*!
+         @brief Sends the client the server registry codec. Must be called in config state
+        */
+        void sendRegistryCodec();
     public:
         /*!
          @brief Constructs a client instance
@@ -97,6 +101,14 @@ class client{
          @return a pointer to the new player instance
         */
         virtual player* toPlayer();
+        /*!
+         @brief Sends the client the present tags
+        */
+        void sendTags();
+        /*!
+         @brief Sends the client the feature flags
+        */
+        void sendFeatureFlags();
 };
 
 #endif

@@ -120,39 +120,48 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->currentLobby = assignedLobby;
     this->eid = eid++;
     { //send LOGIN_PLAY
-        char* dimensionName = "minecraft:overworld";
-        const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
-        byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
-        size_t offset = writeBigEndianInt(data, eid);
-        data[offset] = false; //not hardcore
-        offset++;
-        data[offset] = 0; //gamemode
-        offset++;
-        data[offset] = -1; //prev gamemode
-        offset++;
-        offset += writeVarInt(data + 7, 1);
-        offset += writeString(data + offset, dimensionName, 19);
-        //write the registry codec
-        memcpy(data + offset, registryCodec->bytes, registryCodec->len);
-        offset += registryCodec->len;
-        offset += writeString(data + offset, dimensionName, 19);
-        offset += writeString(data + offset, dimensionName, 19);
-        offset += writeBigEndianLong(data + offset, 0); //seed
-        offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
-        offset += writeVarInt(data + offset, 8); //draw distance
-        offset += writeVarInt(data + offset, 8); //sim distance
-        data[offset] = false; //reduced debug info
-        offset++;
-        data[offset] = false; //immediate respawn
-        offset++;
-        data[offset] = true; //debug
-        offset++;
-        data[offset] = false; //flat
-        offset++;
-        data[offset] = false; //death location
-        offset++;
-        offset += writeVarInt(data + offset, 0); //portal cooldown
-        int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+        if(this->protocol <= NO_CONFIG){
+            char* dimensionName = "minecraft:overworld";
+            const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
+            byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
+            size_t offset = writeBigEndianInt(data, eid);
+            data[offset] = false; //not hardcore
+            offset++;
+            data[offset] = 0; //gamemode
+            offset++;
+            data[offset] = -1; //prev gamemode
+            offset++;
+            offset += writeVarInt(data + 7, 1);
+            offset += writeString(data + offset, dimensionName, 19);
+            //write the registry codec
+            memcpy(data + offset, registryCodec->bytes, registryCodec->len);
+            offset += registryCodec->len;
+            offset += writeString(data + offset, dimensionName, 19);
+            offset += writeString(data + offset, dimensionName, 19);
+            offset += writeBigEndianLong(data + offset, 0); //seed
+            offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
+            offset += writeVarInt(data + offset, 8); //draw distance
+            offset += writeVarInt(data + offset, 8); //sim distance
+            data[offset] = false; //reduced debug info
+            offset++;
+            data[offset] = false; //immediate respawn
+            offset++;
+            data[offset] = true; //debug
+            offset++;
+            data[offset] = false; //flat
+            offset++;
+            data[offset] = false; //death location
+            offset++;
+            offset += writeVarInt(data + offset, 0); //portal cooldown
+            int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+        }
+        else{//TODO implement new LOGIN_PLAY format
+
+        }
+    }
+    if(this->protocol <= NO_CONFIG){
+        this->sendFeatureFlags();
+        this->sendTags();
     }
     //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F
     {//send set held item
