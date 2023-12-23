@@ -61,10 +61,10 @@ typedef struct{
 
 void addVertexVal(vertex* vertex, const char* key, const char* val){
     if(strncmp(key, "x", 1) == 0){
-        vertex->x = atoi(val);
+        vertex->x = (int)atof(val);
     }
     else if(strncmp(key, "y", 1) == 0){
-        vertex->y = atoi(val);
+        vertex->y = (int)atof(val);
     }
 }
 
@@ -133,6 +133,11 @@ void addThingVal(thing* thing, const char* key, const char* val){
 
 typedef void (*addVal)(void*, const char*, const char*);
 
+#define clearWhitespace(ptr) \
+    while(*ptr == ' '){ptr++;} \
+    char* space = strchr(key, ' '); \
+    if(space != NULL){*space = '\0';}
+
 /*!
  @brief Parses a UDMF struct block into a structure
  @param structure the structure to parse into
@@ -146,18 +151,12 @@ void parseBlock(void* structure, char* block, addVal func){
         if(*ptr == '='){
             *ptr = '\0';
             key = block;
-            //get rid of whitespace
-            while(*key == ' '){
-                key++;
-            }
-            char* space = strchr(key, ' ');
-            if(space != NULL){
-                *space = '\0';
-            }
+            clearWhitespace(key)
             block = ptr + 1;
         }
         else if(*ptr == ';'){
             *ptr = '\0';
+            clearWhitespace(block)
             func(structure, key, block);
             block = ptr + 1;
         }
@@ -181,8 +180,9 @@ udmf::udmf(const char* path){
         fseek(f, 0, SEEK_END);
         contentsSize = ftell(f);
         fseek(f, 0, SEEK_SET);
-        contents = (char*)malloc(contentsSize);
+        contents = (char*)malloc(contentsSize + 1);
         fread(contents, 1, contentsSize, f);
+        contents[contentsSize] = '\0';
         fclose(f);
     }
     //parse the file
@@ -230,7 +230,7 @@ udmf::udmf(const char* path){
             char* start = strchr(block, '{');
             if(start != NULL){
                 start--;
-                block = start + 1;
+                block = start + 2;
                 //move back until we find the type
                 while(*start == ' '){
                     start--;
@@ -245,32 +245,43 @@ udmf::udmf(const char* path){
                 if(strncmp(start, LINEDEF_TYPE, len) == 0){
                     linedefCount++;
                     linedefs = (linedef*)realloc(linedefs, linedefCount * sizeof(linedef));
-                    linedef* linedef = linedefs + linedefCount - 1;
-                    parseBlock(linedef, block, (addVal)addLinedefVal);
+                    linedef* ln = linedefs + linedefCount - 1;
+                    memset(ln, 0, sizeof(linedef));
+                    parseBlock(ln, block, (addVal)addLinedefVal);
                 }
                 else if(strncmp(start, VERTEX_TYPE, len) == 0){
                     vertexCount++;
                     vertices = (vertex*)realloc(vertices, vertexCount * sizeof(vertex));
-                    vertex* vertex = vertices + vertexCount - 1;
-                    parseBlock(vertex, block, (addVal)addVertexVal);
+                    vertex* v = vertices + vertexCount - 1;
+                    memset(v, 0, sizeof(vertex));
+                    parseBlock(v, block, (addVal)addVertexVal);
                 }
                 else if(strncmp(start, SIDEDEF_TYPE, len) == 0){
                     sidedefCount++;
                     sidedefs = (sidedef*)realloc(sidedefs, sidedefCount * sizeof(sidedef));
-                    sidedef* sidedef = sidedefs + sidedefCount - 1;
-                    parseBlock(sidedef, block, (addVal)addSidedefVal);
+                    sidedef* sid = sidedefs + sidedefCount - 1;
+                    memset(sid, 0, sizeof(sidedef));
+                    parseBlock(sid, block, (addVal)addSidedefVal);
                 }
                 else if(strncmp(start, SECTOR_TYPE, len) == 0){
                     sectorCount++;
                     sectors = (mapSector*)realloc(sectors, sectorCount * sizeof(mapSector));
                     mapSector* sector = sectors + sectorCount - 1;
+                    memset(sector, 0, sizeof(mapSector));
                     parseBlock(sector, block, (addVal)addSectorVal);
+                    //TODO sectors can have ceiling lower than floor????
+                    if(sector->heightceiling < sector->heightfloor){ //swap for now
+                        int cont = sector->heightceiling;
+                        sector->heightceiling = sector->heightfloor;
+                        sector->heightfloor = cont;
+                    }
                 }
                 else if(strncmp(start, THING_TYPE, len) == 0){
                     thingCount++;
                     things = (thing*)realloc(things, thingCount * sizeof(thing));
-                    thing* thing = things + thingCount - 1;
-                    parseBlock(thing, block, (addVal)addThingVal);
+                    thing* th = things + thingCount - 1;
+                    memset(th, 0, sizeof(thing));
+                    parseBlock(th, block, (addVal)addThingVal);
                 }
             }
             block = strtok_r(NULL, "}", &savePtr);
@@ -328,11 +339,16 @@ udmf::udmf(const char* path){
         for(size_t i = 0; i < sectorCount; i++){
             mapSector* sector = sectors + i;
             sector->heightceiling = (sector->heightceiling + heightVector) / SCALE;
+            sector->heightfloor = (sector->heightfloor + heightVector) / SCALE;
             if(sector->heightceiling > height){
                 height = sector->heightceiling;
             }
         }
+        //printf("width: %d, length: %d, height: %d\n", width, length, height);
         //allocate blocks
+        width++;
+        length++;
+        height++;
         this->blocks = (int32_t***)malloc(width * sizeof(int32_t**));
         for(unsigned int i = 0; i < width; i++){
             this->blocks[i] = (int32_t**)malloc(height * sizeof(int32_t*));
@@ -353,7 +369,7 @@ udmf::udmf(const char* path){
             //get the front sector
             mapSector* front = sectors + (sidedefs + linedef->sidefront)->sector;
             this->blocks[start->x][front->heightfloor][start->y] = 1;
-            if(front->heightceiling > front->heightfloor){
+            if(front->heightceiling > front->heightfloor){    
                 this->blocks[start->x][front->heightceiling][start->y] = 1;
             }
             //get the back sector
@@ -375,6 +391,12 @@ udmf::udmf(const char* path){
 }
 
 udmf::~udmf(){
+    for(unsigned int i = 0; i < this->width; i++){
+        for(unsigned int j = 0; j < this->height; j++){
+            free(this->blocks[i][j]);
+        }
+        free(this->blocks[i]);
+    }
     free(this->blocks);
     free(this->palette);
 }
