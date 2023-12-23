@@ -25,7 +25,7 @@ minecraftMap::~minecraftMap(){
 }
 
 palettedContainer minecraftMap::getSection(unsigned int chunkX, unsigned int chunkZ, unsigned int number){
-    if(chunkX >= this->width / 16 || chunkZ >= this->length / 16){
+    if(chunkX >= (this->width / 16) + 1 || chunkZ >= (this->length / 16) + 1){
         throw "Out of bounds";
     }
     if(number >= this->height / 16){

@@ -204,7 +204,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         for(int chunkX = 0; chunkX < chunkWidth; chunkX++){
             for(int chunkZ = 0; chunkZ < chunkLength; chunkZ++){
                 for(int i = 0; i < sectionMax; i++){
-                    sections[i] = m->getSection(chunkX, i, chunkZ);
+                    sections[i] = m->getSection(chunkX, chunkZ, i);
                 }
                 this->sendChunk(sections, sectionMax, chunkX, chunkZ);
             }
@@ -290,21 +290,27 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     size_t offset = 0;
     offset += writeBigEndianInt(data + offset, chunkX);
     offset += writeBigEndianInt(data + offset, chunkZ);
-    //we skip the heightmaps NBT
+    //TODO heightmaps must be here
     data[offset] = TAG_INVALID;
     offset++;
     //foreach possible section
     for(int i = 0; i < sectionMax; i++){
         palettedContainer* section = sections + i;
         int16_t nonAir = 0;
-        for(int j = 0; j < 4096; j++){
-            if(section->states[j] != 0){
-                nonAir++;
+        if(section->paletteSize == 1){
+            nonAir = (section->palette[0] == 0) * 4096;
+        }
+        else{
+            for(int j = 0; j < 4096; j++){
+                if(section->states[j] != 0){
+                    nonAir++;
+                }
             }
         }
         offset += writeBigEndianShort(data + offset, nonAir);
         byteArray blocks = writePalletedContainer(section, 0);
-        palettedContainer emptyBiomes = {1, {0}, NULL};
+        int single[1] = {0};
+        palettedContainer emptyBiomes = {1, single, NULL};
         byteArray biomes = writePalletedContainer(&emptyBiomes, 0);
         data = (byte*)realloc(data, offset + blocks.len + biomes.len + neededLater);
         memcpy(data + offset, blocks.bytes, blocks.len);

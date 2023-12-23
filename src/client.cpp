@@ -188,7 +188,7 @@ void client::sendFeatureFlags(){
 void client::sendTags(){
     const char* blockTag = "minecraft:block";
     const char* indestructibleTag = "features_cannot_replace";
-    byte data[MAX_VAR_INT + sizeof(indestructibleTag)];
+    byte data[MAX_VAR_INT + sizeof(indestructibleTag) + sizeof(blockTag)];
     size_t offset = writeVarInt(data, 1);
     offset += writeString(data + offset, blockTag, sizeof(blockTag));
     offset += writeString(data + offset, indestructibleTag, sizeof(indestructibleTag));

@@ -1,6 +1,10 @@
 #ifndef WEAPONS_HPP
 #define WEAPONS_HPP
 
+extern "C"{
+    #include <stdint.h>
+}
+
 #define MAX_WEAPONS 9
 
 typedef enum{

@@ -363,22 +363,46 @@ udmf::udmf(const char* path){
         //foreach linedef
         for(size_t i = 0; i < linedefCount; i++){
             const linedef* linedef = linedefs + i;
-            vertex* start = vertices + linedef->start;
-            //vertex* end = vertices + linedef->end;
-
+            vertex* start = vertices + linedef->start; //line start
+            vertex* end = vertices + linedef->end; //line end
             //get the front sector
-            mapSector* front = sectors + (sidedefs + linedef->sidefront)->sector;
+            mapSector* front = sectors + (sidedefs + linedef->sidefront)->sector; //front sector
             this->blocks[start->x][front->heightfloor][start->y] = 1;
-            if(front->heightceiling > front->heightfloor){    
+            int wallStart = front->heightfloor; //y index of the lowest row of blocks of the wall
+            int wallEnd = front->heightceiling; //y index of the highest row of blocks of the wall
+            if(front->heightceiling != front->heightfloor){    
                 this->blocks[start->x][front->heightceiling][start->y] = 1;
             }
             //get the back sector
-            if(linedef->sideback < 0){
+            if(linedef->sideback >= 0){
                 mapSector* end = sectors + (sidedefs + linedef->sideback)->sector;
+                //update wall info if possible
+                if(end->heightfloor < wallStart){
+                    wallStart = end->heightfloor;
+                }
+                if(end->heightceiling > wallEnd){
+                    wallEnd = end->heightceiling;
+                }
+                
                 this->blocks[start->x][end->heightfloor][start->y] = 1;
-                if(end->heightceiling > end->heightfloor){
+                if(end->heightceiling != end->heightfloor){
                     this->blocks[start->x][end->heightceiling][start->y] = 1;
                 }
+            }
+            //https://en.wikipedia.org/wiki/Bresenham's_line_algorithm
+            int dx = abs(end->x - start->x);
+            int dy = abs(end->y - start->y);
+            int D = 2 * dy - dx;
+            int y = start->y;
+            for(int x = start->x; x <= end->x; x++){
+                for(int r = wallStart; r <= wallEnd; r++){
+                    this->blocks[x][r][y] = 1;
+                }
+                if(D > 0){
+                    y++;
+                    D = D - 2 * dx;
+                }
+                D = D + 2 * dy;
             }
         }
         free(linedefs);

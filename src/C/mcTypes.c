@@ -474,6 +474,7 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
                 }
                 result.bytes[result.len] = bpe;
                 result.len++;
+                //FIXME invalid reads and writes here
                 result.len += writeVarInt(result.bytes + result.len, container->paletteSize);
                 for(int i = 0; i < container->paletteSize; i++){
                     result.len += writeVarInt(result.bytes + result.len, container->palette[i]);
