@@ -1,5 +1,7 @@
 #include "udmf.hpp"
 #include <regex>
+#include <fstream>
+#include <streambuf>
 
 extern "C"{
     #include <stdio.h>
@@ -58,27 +60,14 @@ typedef struct{
 #define SCALE 64
 
 /*!
-    @brief A macro to iterate over all matches that a certain regex expression produces
-    @param regexExp the expression to iterate over
-    @param name the name of the expression
-*/
-#define foreachRegexMatch(regexExp, regexName, hay) \
-    std::regex const regexName##Regex(regexExp); \
-    auto regexName##Begin = std::sregex_iterator(hay.begin(), hay.end(), regexName##Regex); \
-    auto regexName##End = std::sregex_iterator(); \
-    std::string regexName##Match;\
-    for(std::sregex_iterator i = regexName##Begin; i != regexName##End; i++,regexName##Match = i->str())
-
-/*!
  @brief Gets the first match of a certain property in a block
  @param property the property to get the match of
  @param hay the block to search in
  @return the property value
 */
-static std::string getMatch(const char* property, std::string hay){
-    size_t propertyLen = strlen(property);
-    char* regexStr = (char*)malloc( + 23);
-    snprintf(regexStr, propertyLen + 23, "%s[\\s]*?[\\s]*?=[\\s]*?([\\S]*?);", property);
+static std::string getMatch(const char* property, size_t propertyLen, std::string hay){
+    char* regexStr = (char*)malloc(propertyLen + 30);
+    snprintf(regexStr, propertyLen + 30, "%s[\\s]*?[\\s]*?=[\\s]*?([\\S]*?);", property);
     std::regex const regex(regexStr); 
     std::smatch propertyMatch;
     std::regex_search(hay, propertyMatch, regex);
@@ -87,25 +76,19 @@ static std::string getMatch(const char* property, std::string hay){
 }
 
 udmf::udmf(const char* path){
-    char* contents;
-    size_t contentsSize;
-    //open the file and read it's contents
+    std::string contents;
+    //open the file and read its contents
     {
-        FILE* f = fopen(path, "r");
-        if(f == NULL){
-            throw "Could not open file";
-        }
-        fseek(f, 0, SEEK_END);
-        contentsSize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-        contents = (char*)malloc(contentsSize);
-        fread(contents, 1, contentsSize, f);
-        fclose(f);
+        std::ifstream t(path);
+        std::stringstream buffer;
+        buffer << t.rdbuf();
+        contents = buffer.str();
     }
     //parse the file
     {
+        size_t contentsSz = contents.length();
         //remove all comments
-        for(unsigned int i = 0; i < contentsSize; i++){
+        for(unsigned int i = 0; i < contentsSz; i++){
             if(contents[i] == '/'){
                 if(contents[i + 1] == '/'){
                     while(contents[i] != '\n'){
@@ -137,81 +120,41 @@ udmf::udmf(const char* path){
         thing* things = NULL;
         size_t thingCount = 0;
         //find all the blocks
-        std::string contentsStr(contents, contentsSize);
-        foreachRegexMatch(R"([A-Za-z_]+[A-Za-z0-9_]*[\s]*?\{([\s\S]*?)\})", block, contentsStr){
-            const char* typeName = blockMatch.c_str() - 1;
-            size_t typeNameLen = 0;
-            //find the block type
-            //TODO fix this, doesn't work that well
-            while(*typeName == ' '){
-                typeName--;
+        std::regex const blockRegex("([A-Za-z_]+[A-Za-z0-9_])*[\\s]*?\\{([\\s\\S]*?)\\}");
+        auto blockBegin = std::sregex_iterator(contents.begin(), contents.end(), blockRegex);
+        auto blockEnd = std::sregex_iterator();
+        for(std::sregex_iterator i = blockBegin; i != blockEnd; i++){
+            std::string type = i->str(1);
+            size_t typeNameLen = type.length();
+            if(typeNameLen == 0){
+                continue;
             }
-            while(*typeName != ' '){
-                typeName--;
-                typeNameLen++;
-            }
+            std::string blockMatch = i->str(2);
+            const char* typeName = type.c_str();
             if(strncmp(typeName, LINEDEF_TYPE, typeNameLen) == 0){
                 linedefCount++;
                 linedefs = (linedef*)realloc(linedefs, sizeof(linedef) * linedefCount);
                 linedef* linedef = linedefs + (linedefCount - 1);
-                std::string id = getMatch("id", blockMatch);
-                linedef->id = atoi(id.c_str());
-                std::string v1 = getMatch("v1", blockMatch);
-                linedef->start = atoi(v1.c_str());
-                std::string v2 = getMatch("v2", blockMatch);
-                linedef->end = atoi(v2.c_str());
-                std::string front = getMatch("sidefront", blockMatch);
-                linedef->sidefront = atoi(front.c_str());
-                std::string back = getMatch("sideback", blockMatch);
-                linedef->sideback = atoi(back.c_str());
             }
             else if(strncmp(typeName, VERTEX_TYPE, typeNameLen) == 0){
                 vertexCount++;
                 vertices = (vertex*)realloc(vertices, sizeof(vertex) * vertexCount);
                 vertex* vertex = vertices + (vertexCount - 1);
-                std::string x = getMatch("x", blockMatch);
-                vertex->x = atoi(x.c_str());
-                std::string y = getMatch("y", blockMatch);
-                vertex->y = atoi(y.c_str());
             }
             else if(strncmp(typeName, SIDEDEF_TYPE, typeNameLen) == 0){
                 sidedefCount++;
                 sidedefs = (sidedef*)realloc(sidedefs, sizeof(sidedef) * sidedefCount);
                 sidedef* sidedef = sidedefs + (sidedefCount - 1);
-                std::string id = getMatch("id", blockMatch);
-                sidedef->id = atoi(id.c_str());
-                std::string offsetx = getMatch("offsetx", blockMatch);
-                sidedef->offsetx = atoi(offsetx.c_str());
-                std::string offsety = getMatch("offsety", blockMatch);
-                sidedef->offsety = atoi(offsety.c_str());
-                std::string sector = getMatch("sector", blockMatch);
-                sidedef->sector = atoi(sector.c_str());
             }
             else if(strncmp(typeName, SECTOR_TYPE, typeNameLen) == 0){
                 sectorCount++;
                 sectors = (mapSector*)realloc(sectors, sizeof(mapSector) * sectorCount);
                 mapSector* sector = sectors + (sectorCount - 1);
-                std::string heightfloor = getMatch("heightfloor", blockMatch);
-                sector->heightfloor = atoi(heightfloor.c_str());
-                std::string heightceiling = getMatch("heightceiling", blockMatch);
-                sector->heightceiling = atoi(heightceiling.c_str());
             }
             else if(strncmp(typeName, THING_TYPE, typeNameLen) == 0){
                 thingCount++;
                 things = (thing*)realloc(things, sizeof(thing) * thingCount);
                 thing* thing = things + (thingCount - 1);
-                std::string id = getMatch("id", blockMatch);
-                thing->id = atoi(id.c_str());
-                std::string x = getMatch("x", blockMatch);
-                thing->x = atof(x.c_str());
-                std::string y = getMatch("y", blockMatch);
-                thing->y = atof(y.c_str());
-                std::string height = getMatch("height", blockMatch);
-                thing->height = atof(height.c_str());
-                std::string angle = getMatch("angle", blockMatch);
-                thing->angle = atoi(angle.c_str());
-                std::string type = getMatch("type", blockMatch);
-                thing->type = atoi(type.c_str());
             }
         }
         //find the lowest x and y values

@@ -7,6 +7,8 @@ extern "C"{
     #include <stdlib.h>
 }
 
+//https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
+
 player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
     //initialize the not inherited fields
     this->currentLobby = NULL;
@@ -159,10 +161,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
 
         }
     }
-    if(this->protocol <= NO_CONFIG){
-        this->sendFeatureFlags();
-        this->sendTags();
-    }
     //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F
     {//send set held item
         byte data[1];
@@ -173,6 +171,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         byte data[MAX_VAR_INT];
         size_t offset = writeVarInt(data, 0);
         this->send(data, offset, UPDATE_RECIPES);
+    }
+    if(this->protocol <= NO_CONFIG){
+        this->sendFeatureFlags();
+        this->sendTags();
     }
     //set op permisssion level
     {
@@ -189,6 +191,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0);
         this->send(data, offset, COMMANDS);
     }
+    //Recipe
     //send chunk data and update light
     {
         this->send(NULL, 0, BUNDLE_DELIMITER);

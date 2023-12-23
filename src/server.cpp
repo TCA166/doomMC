@@ -169,6 +169,7 @@ int main(int argc, char *argv[]){
         }
     }
     server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec);
+    printf("Server started on port %d\n", PORT);
     //set of socket descriptors
     fd_set readfds;
     while(true){

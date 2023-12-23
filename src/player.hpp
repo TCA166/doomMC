@@ -39,6 +39,10 @@ class player : public client{
         */
         void setLocation(double x, double y, double z);
         /*!
+         @brief Sends a syncrhonize location packet to the player
+        */
+        void synchronizeLocation();
+        /*!
          @brief Deals some damage to the player and sends the appropriate packet
          @param damage the amount to deal
          @param eid the entity id of the damager
