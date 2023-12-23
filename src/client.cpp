@@ -60,7 +60,11 @@ packet client::getPacket(){
 }
 
 int client::send(byte* data, int length, byte packetId){
-    return sendPacket(this->fd, length, packetId, data, this->compression);
+    int res = sendPacket(this->fd, length, packetId, data, this->compression);
+    if(res == -1 && errno == EPIPE){
+        this->disconnect();
+    }
+    return res;
 }
 
 int client::handlePacket(packet* p){

@@ -441,13 +441,13 @@ static size_t writeIntToPackedArray(uint64_t* buff, int value, size_t offset, ui
 byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe){
     byteArray result = nullByteArray;
     const size_t longCount = (len / 64) * bpe;
-    result.bytes = calloc(longCount, sizeof(uint64_t));
+    result.bytes = malloc((longCount * sizeof(int64_t)) + MAX_VAR_INT);
     const int perLong = (int)((len / 64) / bpe);
     result.len += writeVarInt(result.bytes + result.len, longCount);
     for(int i = 0; i < longCount; i++){
         uint64_t l = 0;
         for(int n = 0; n < perLong; n++){
-            result.len += writeIntToPackedArray(&l, val[i * perLong + n], n * bpe, bpe);
+            writeIntToPackedArray(&l, val[i * perLong + n], n * bpe, bpe);
         }
         result.len += writeBigEndianLong(result.bytes + result.len, l);
     }
@@ -474,11 +474,11 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
                 }
                 result.bytes[result.len] = bpe;
                 result.len++;
-                //FIXME invalid reads and writes here
                 result.len += writeVarInt(result.bytes + result.len, container->paletteSize);
                 for(int i = 0; i < container->paletteSize; i++){
                     result.len += writeVarInt(result.bytes + result.len, container->palette[i]);
                 }
+                //FIXME invalid reads and writes here
                 byteArray states = writePackedArray(container->states, 4096, bpe);
                 result.bytes = realloc(result.bytes, 1 + states.len + result.len);
                 memcpy(result.bytes + result.len, states.bytes, states.len);

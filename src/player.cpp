@@ -207,6 +207,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                     sections[i] = m->getSection(chunkX, chunkZ, i);
                 }
                 this->sendChunk(sections, sectionMax, chunkX, chunkZ);
+                for(int i = 0; i < sectionMax; i++){
+                    free(sections[i].palette);
+                    free(sections[i].states);
+                }
             }
         }
         this->send(NULL, 0, BUNDLE_DELIMITER);

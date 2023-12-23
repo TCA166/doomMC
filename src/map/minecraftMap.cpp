@@ -1,12 +1,14 @@
 #include "minecraftMap.hpp"
 #include <stdlib.h>
+#include <string.h>
 
 minecraftMap::minecraftMap(map* source){
     this->width = source->getWidth();
     this->height = source->getHeight();
     this->length = source->getLength();
     this->paletteSize = source->getPaletteSize();
-    this->palette = source->getPalette();
+    this->palette = (int32_t*)malloc(this->paletteSize * sizeof(int32_t));
+    memcpy(this->palette, source->getPalette(), this->paletteSize * sizeof(int32_t));
     this->blocks = (int32_t***)calloc(this->width, sizeof(int32_t**));
     for(int x = 0; x < this->width; x++){
         this->blocks[x] = (int32_t**)calloc(this->height, sizeof(int32_t*));
