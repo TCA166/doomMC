@@ -59,42 +59,143 @@ typedef struct{
 //64 units = 1 block
 #define SCALE 64
 
+void addVertexVal(vertex* vertex, const char* key, const char* val){
+    if(strncmp(key, "x", 1) == 0){
+        vertex->x = atoi(val);
+    }
+    else if(strncmp(key, "y", 1) == 0){
+        vertex->y = atoi(val);
+    }
+}
+
+void addSidedefVal(sidedef* sidedef, const char* key, const char* val){
+    if(strncmp(key, "id", 2) == 0){
+        sidedef->id = atoi(val);
+    }
+    else if(strncmp(key, "offsetx", 7) == 0){
+        sidedef->offsetx = atoi(val);
+    }
+    else if(strncmp(key, "offsety", 7) == 0){
+        sidedef->offsety = atoi(val);
+    }
+    else if(strncmp(key, "sector", 6) == 0){
+        sidedef->sector = atoi(val);
+    }
+}
+
+void addSectorVal(mapSector* sector, const char* key, const char* val){
+    if(strncmp(key, "heightfloor", 11) == 0){
+        sector->heightfloor = atoi(val);
+    }
+    else if(strncmp(key, "heightceiling", 13) == 0){
+        sector->heightceiling = atoi(val);
+    }
+}
+
+void addLinedefVal(linedef* linedef, const char* key, const char* val){
+    if(strncmp(key, "id", 2) == 0){
+        linedef->id = atoi(val);
+    }
+    else if(strncmp(key, "v1", 2) == 0){
+        linedef->start = atoi(val);
+    }
+    else if(strncmp(key, "v2", 2) == 0){
+        linedef->end = atoi(val);
+    }
+    else if(strncmp(key, "sidefront", 9) == 0){
+        linedef->sidefront = atoi(val);
+    }
+    else if(strncmp(key, "sideback", 8) == 0){
+        linedef->sideback = atoi(val);
+    }
+}
+
+void addThingVal(thing* thing, const char* key, const char* val){
+    if(strncmp(key, "id", 2) == 0){
+        thing->id = atoi(val);
+    }
+    else if(strncmp(key, "x", 1) == 0){
+        thing->x = atof(val);
+    }
+    else if(strncmp(key, "y", 1) == 0){
+        thing->y = atof(val);
+    }
+    else if(strncmp(key, "height", 6) == 0){
+        thing->height = atof(val);
+    }
+    else if(strncmp(key, "angle", 5) == 0){
+        thing->angle = atoi(val);
+    }
+    else if(strncmp(key, "type", 4) == 0){
+        thing->type = atoi(val);
+    }
+}
+
+typedef void (*addVal)(void*, const char*, const char*);
+
 /*!
- @brief Gets the first match of a certain property in a block
- @param property the property to get the match of
- @param hay the block to search in
- @return the property value
+ @brief Parses a UDMF struct block into a structure
+ @param structure the structure to parse into
+ @param block the block to parse
+ @param func the function to call to add a value to the structure
 */
-static std::string getMatch(const char* property, size_t propertyLen, std::string hay){
-    char* regexStr = (char*)malloc(propertyLen + 30);
-    snprintf(regexStr, propertyLen + 30, "%s[\\s]*?[\\s]*?=[\\s]*?([\\S]*?);", property);
-    std::regex const regex(regexStr); 
-    std::smatch propertyMatch;
-    std::regex_search(hay, propertyMatch, regex);
-    free(regexStr);
-    return propertyMatch[0].str();
+void parseBlock(void* structure, char* block, addVal func){
+    char* ptr = block;
+    char* key = NULL;
+    while(*ptr != '\0'){ //foreach character
+        if(*ptr == '='){
+            *ptr = '\0';
+            key = block;
+            //get rid of whitespace
+            while(*key == ' '){
+                key++;
+            }
+            char* space = strchr(key, ' ');
+            if(space != NULL){
+                *space = '\0';
+            }
+            block = ptr + 1;
+        }
+        else if(*ptr == ';'){
+            *ptr = '\0';
+            func(structure, key, block);
+            block = ptr + 1;
+        }
+        ptr++;
+    }
 }
 
 udmf::udmf(const char* path){
-    std::string contents;
+    /*
+    We going really old school here.
+    Regex wasn't fast enough I think, so strtok_r it is.
+    */
+    size_t contentsSize;
+    char* contents;
     //open the file and read its contents
     {
-        std::ifstream t(path);
-        std::stringstream buffer;
-        buffer << t.rdbuf();
-        contents = buffer.str();
+        FILE* f = fopen(path, "r");
+        if(f == NULL){
+            throw "Could not open file";
+        }
+        fseek(f, 0, SEEK_END);
+        contentsSize = ftell(f);
+        fseek(f, 0, SEEK_SET);
+        contents = (char*)malloc(contentsSize);
+        fread(contents, 1, contentsSize, f);
+        fclose(f);
     }
     //parse the file
     {
-        size_t contentsSz = contents.length();
         //remove all comments
-        for(unsigned int i = 0; i < contentsSz; i++){
+        for(unsigned int i = 0; i < contentsSize; i++){
             if(contents[i] == '/'){
                 if(contents[i + 1] == '/'){
                     while(contents[i] != '\n'){
                         contents[i] = ' ';
                         i++;
                     }
+                    contents[i] = ' ';
                 }
                 else if(contents[i + 1] == '*'){
                     while(contents[i] != '*' && contents[i + 1] != '/'){
@@ -103,8 +204,10 @@ udmf::udmf(const char* path){
                     }
                 }
             }
+            else if(contents[i] == '\n'){
+                contents[i] = ' ';
+            }
         }
-        //std::regex const blockRegex(R"([A-Za-z_]+[A-Za-z0-9_]*[\s]*?{([\s\S]*?)})");
         linedef* linedefs = NULL;
         size_t linedefCount = 0;
 
@@ -120,43 +223,59 @@ udmf::udmf(const char* path){
         thing* things = NULL;
         size_t thingCount = 0;
         //find all the blocks
-        std::regex const blockRegex("([A-Za-z_]+[A-Za-z0-9_])*[\\s]*?\\{([\\s\\S]*?)\\}");
-        auto blockBegin = std::sregex_iterator(contents.begin(), contents.end(), blockRegex);
-        auto blockEnd = std::sregex_iterator();
-        for(std::sregex_iterator i = blockBegin; i != blockEnd; i++){
-            std::string type = i->str(1);
-            size_t typeNameLen = type.length();
-            if(typeNameLen == 0){
-                continue;
+        char* savePtr;
+        char* block = strtok_r(contents, "}", &savePtr);
+        while(block != NULL){
+            //find the type of block
+            char* start = strchr(block, '{');
+            if(start != NULL){
+                start--;
+                block = start + 1;
+                //move back until we find the type
+                while(*start == ' '){
+                    start--;
+                }
+                *(start + 1) = '\0';
+                size_t len = 1;
+                //move back until we find the start of the type
+                while(*(start - 1) != ' '){
+                    len++;
+                    start--;
+                }
+                if(strncmp(start, LINEDEF_TYPE, len) == 0){
+                    linedefCount++;
+                    linedefs = (linedef*)realloc(linedefs, linedefCount * sizeof(linedef));
+                    linedef* linedef = linedefs + linedefCount - 1;
+                    parseBlock(linedef, block, (addVal)addLinedefVal);
+                }
+                else if(strncmp(start, VERTEX_TYPE, len) == 0){
+                    vertexCount++;
+                    vertices = (vertex*)realloc(vertices, vertexCount * sizeof(vertex));
+                    vertex* vertex = vertices + vertexCount - 1;
+                    parseBlock(vertex, block, (addVal)addVertexVal);
+                }
+                else if(strncmp(start, SIDEDEF_TYPE, len) == 0){
+                    sidedefCount++;
+                    sidedefs = (sidedef*)realloc(sidedefs, sidedefCount * sizeof(sidedef));
+                    sidedef* sidedef = sidedefs + sidedefCount - 1;
+                    parseBlock(sidedef, block, (addVal)addSidedefVal);
+                }
+                else if(strncmp(start, SECTOR_TYPE, len) == 0){
+                    sectorCount++;
+                    sectors = (mapSector*)realloc(sectors, sectorCount * sizeof(mapSector));
+                    mapSector* sector = sectors + sectorCount - 1;
+                    parseBlock(sector, block, (addVal)addSectorVal);
+                }
+                else if(strncmp(start, THING_TYPE, len) == 0){
+                    thingCount++;
+                    things = (thing*)realloc(things, thingCount * sizeof(thing));
+                    thing* thing = things + thingCount - 1;
+                    parseBlock(thing, block, (addVal)addThingVal);
+                }
             }
-            std::string blockMatch = i->str(2);
-            const char* typeName = type.c_str();
-            if(strncmp(typeName, LINEDEF_TYPE, typeNameLen) == 0){
-                linedefCount++;
-                linedefs = (linedef*)realloc(linedefs, sizeof(linedef) * linedefCount);
-                linedef* linedef = linedefs + (linedefCount - 1);
-            }
-            else if(strncmp(typeName, VERTEX_TYPE, typeNameLen) == 0){
-                vertexCount++;
-                vertices = (vertex*)realloc(vertices, sizeof(vertex) * vertexCount);
-                vertex* vertex = vertices + (vertexCount - 1);
-            }
-            else if(strncmp(typeName, SIDEDEF_TYPE, typeNameLen) == 0){
-                sidedefCount++;
-                sidedefs = (sidedef*)realloc(sidedefs, sizeof(sidedef) * sidedefCount);
-                sidedef* sidedef = sidedefs + (sidedefCount - 1);
-            }
-            else if(strncmp(typeName, SECTOR_TYPE, typeNameLen) == 0){
-                sectorCount++;
-                sectors = (mapSector*)realloc(sectors, sizeof(mapSector) * sectorCount);
-                mapSector* sector = sectors + (sectorCount - 1);
-            }
-            else if(strncmp(typeName, THING_TYPE, typeNameLen) == 0){
-                thingCount++;
-                things = (thing*)realloc(things, sizeof(thing) * thingCount);
-                thing* thing = things + (thingCount - 1);
-            }
+            block = strtok_r(NULL, "}", &savePtr);
         }
+        free(contents);
         //find the lowest x and y values
         int minX = 0;
         int minY = 0;
