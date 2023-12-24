@@ -478,7 +478,6 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
                 for(int i = 0; i < container->paletteSize; i++){
                     result.len += writeVarInt(result.bytes + result.len, container->palette[i]);
                 }
-                //FIXME invalid reads and writes here
                 byteArray states = writePackedArray(container->states, 4096, bpe);
                 result.bytes = realloc(result.bytes, 1 + states.len + result.len);
                 memcpy(result.bytes + result.len, states.bytes, states.len);
@@ -556,4 +555,40 @@ size_t writeBigEndianFloat(byte* buff, float f){
 
 size_t writeBigEndianDouble(byte* buff, double d){
     return writeBigEndianLong(buff, d);
+}
+
+byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, size_t sectionCount, size_t globalPaletteSize){
+    size_t offset = 0;
+    byte* data = malloc(2);
+    for(int i = 0; i < sectionCount; i++){
+        palettedContainer* section = sections + i;
+        int single[1] = {0};
+        palettedContainer emptyBiomes = {1, single, NULL};
+        palettedContainer* biome = &emptyBiomes;
+        if(biomes != NULL){
+            biome = biomes + i;
+        }
+        int16_t nonAir = 0;
+        if(section->paletteSize == 1){
+            nonAir = (section->palette[0] == 0) * 4096;
+        }
+        else{
+            for(int j = 0; j < 4096; j++){
+                if(section->states[j] != 0){
+                    nonAir++;
+                }
+            }
+        }
+        offset += writeBigEndianShort(data + offset, nonAir);
+        byteArray blocks = writePalletedContainer(section, globalPaletteSize);
+        byteArray biomes = writePalletedContainer(biome, globalPaletteSize);
+        data = (byte*)realloc(data, offset + blocks.len + biomes.len + 2);
+        memcpy(data + offset, blocks.bytes, blocks.len);
+        offset += blocks.len;
+        free(blocks.bytes);
+        memcpy(data + offset, biomes.bytes, biomes.len);
+        offset += biomes.len;
+        free(biomes.bytes);
+    }
+    return (byteArray){data, offset};
 }

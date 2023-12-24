@@ -208,7 +208,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 }
                 this->sendChunk(sections, sectionMax, chunkX, chunkZ);
                 for(int i = 0; i < sectionMax; i++){
-                    free(sections[i].palette);
                     free(sections[i].states);
                 }
             }
@@ -290,40 +289,28 @@ int player::handlePacket(packet* p){
 
 void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){
     const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 3);
-    byte* data = (byte*)malloc((sizeof(int32_t) * 2) + 1 + (sizeof(int16_t)));
+    byte* data = (byte*)malloc((sizeof(int32_t) * 2) + 1 + (sizeof(int16_t)) + (3 + 15 + 6));
     size_t offset = 0;
     offset += writeBigEndianInt(data + offset, chunkX);
     offset += writeBigEndianInt(data + offset, chunkZ);
-    //TODO heightmaps must be here
+    data[offset] = TAG_COMPOUND;
+    offset++;
+    offset += writeBigEndianShort(data + offset, 0);
+    data[offset] = TAG_LONG_ARRAY;
+    offset++;
+    offset += writeBigEndianShort(data + offset, 15);
+    memcpy(data + offset, "MOTION_BLOCKING", 15);
+    offset += 15;
+    //FIXME actually send heightmap data
+    offset += writeBigEndianShort(data + offset, 0);
     data[offset] = TAG_INVALID;
     offset++;
-    //foreach possible section
-    for(int i = 0; i < sectionMax; i++){
-        palettedContainer* section = sections + i;
-        int16_t nonAir = 0;
-        if(section->paletteSize == 1){
-            nonAir = (section->palette[0] == 0) * 4096;
-        }
-        else{
-            for(int j = 0; j < 4096; j++){
-                if(section->states[j] != 0){
-                    nonAir++;
-                }
-            }
-        }
-        offset += writeBigEndianShort(data + offset, nonAir);
-        byteArray blocks = writePalletedContainer(section, 0);
-        int single[1] = {0};
-        palettedContainer emptyBiomes = {1, single, NULL};
-        byteArray biomes = writePalletedContainer(&emptyBiomes, 0);
-        data = (byte*)realloc(data, offset + blocks.len + biomes.len + neededLater);
-        memcpy(data + offset, blocks.bytes, blocks.len);
-        offset += blocks.len;
-        free(blocks.bytes);
-        memcpy(data + offset, biomes.bytes, biomes.len);
-        offset += biomes.len;
-        free(biomes.bytes);
-    }
+    byteArray buff = writeSections(sections, NULL, sectionCount, 0);
+    offset += writeVarInt(data + offset, (int32_t)buff.len);
+    data = (byte*)realloc(data, offset + buff.len + neededLater);
+    memcpy(data + offset, buff.bytes, buff.len);
+    offset += buff.len;
+    free(buff.bytes);
     //block entities
     offset += writeVarInt(data + offset, 0);
     {//bit sets for sky light

@@ -60,6 +60,7 @@ packet client::getPacket(){
 }
 
 int client::send(byte* data, int length, byte packetId){
+    printf("Sending\n");
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
     if(res == -1 && errno == EPIPE){
         this->disconnect();

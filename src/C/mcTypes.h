@@ -412,4 +412,14 @@ size_t writeBigEndianFloat(byte* buff, float f);
 */
 size_t writeBigEndianDouble(byte* buff, double d);
 
+/*!
+ @brief Writes sections and biome sections to the buffer
+ @param sections the sections to write
+ @param biomes the biomes to write
+ @param sectionCount the amount of sections to write
+ @param globalPaletteSize the size of the global palette
+ @return the encoded sections
+*/
+byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, size_t sectionCount, size_t globalPaletteSize);
+
 #endif
