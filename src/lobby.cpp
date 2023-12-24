@@ -15,7 +15,7 @@ typedef void*(*thread)(void*);
 
 #define timeout {60, 0}
 
-const byteArray* lobby::getRegistryCodec(){
+const byteArray* lobby::getRegistryCodec() const{
     return this->registryCodec;
 }
 
@@ -24,16 +24,18 @@ void* lobby::monitorPlayers(lobby* thisLobby){
     int maxSd = 0;
     while(true){
         FD_ZERO(&readfds);
-        for(int i = 0; i < thisLobby->playerCount; i++){
-            if (thisLobby->players[i] == NULL){
+        for(int i = 0; i < thisLobby->maxPlayers; i++){
+            if(thisLobby->players[i] == NULL){
                 continue;
             }
             int fd = thisLobby->players[i]->getFd();
+            printf("fd: %d\n", fd);
             FD_SET(fd, &readfds);
             if(fd > maxSd){
                 maxSd = fd;
             }
         }
+        //FIXME select doesn't stop on addPlayer USE exceptfds ?
         int activity = select(maxSd + 1, &readfds, NULL, NULL, &thisLobby->monitorTimeout);
         if(activity > 0){
             for(int i = 0; i < thisLobby->playerCount; i++){
@@ -81,7 +83,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const mine
 
 }
 
-unsigned int lobby::getPlayerCount(){
+unsigned int lobby::getPlayerCount() const{
     return this->playerCount;
 }
 
@@ -89,6 +91,7 @@ void lobby::addPlayer(player* p){
     if(this->playerCount >= this->maxPlayers){
         return;
     }
+    this->playerCount++;
     for(int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] == NULL){
             this->players[i] = p;
@@ -97,10 +100,9 @@ void lobby::addPlayer(player* p){
             break;
         }
     }
-    this->playerCount++;
 }
 
-unsigned int lobby::getMaxPlayers(){
+unsigned int lobby::getMaxPlayers() const{
     return this->maxPlayers;
 }
 
@@ -123,14 +125,18 @@ void lobby::removePlayer(player* p){
     }
 }
 
-const struct weapon* lobby::getWeapons(){
+const struct weapon* lobby::getWeapons() const{
     return this->weapons;
 }
 
-const struct ammo* lobby::getAmmo(){
+const struct ammo* lobby::getAmmo() const{
     return this->ammo;
 }
 
-const minecraftMap* lobby::getMap(){
+const minecraftMap* lobby::getMap() const{
     return this->map;
+}
+
+const player* lobby::getPlayer(int n) const{
+    return this->players[n];
 }

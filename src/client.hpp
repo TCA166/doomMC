@@ -57,17 +57,17 @@ class client{
          @brief Gets the state of the client
          @return the state of the client
         */
-        state_t getState();
+        state_t getState() const;
         /*!
          @brief Gets the username of the client
          @return the username of the client
         */
-        char* getUsername();
+        const char* getUsername() const;
         /*!
          @brief Gets the compression level established with the client
          @return the compression level
         */
-        int getCompression();
+        int getCompression() const;
         /*!
          @brief Sets the username of the client
          @param username the username to set

@@ -145,7 +145,7 @@ int client::handlePacket(packet* p){
     return 1;
 }
 
-int client::getCompression(){
+int client::getCompression() const{
     return this->compression;
 }
 
@@ -153,7 +153,7 @@ int client::getFd(){
     return this->fd;
 }
 
-state_t client::getState(){
+state_t client::getState() const{
     return this->state;
 }
 
@@ -192,9 +192,21 @@ void client::sendFeatureFlags(){
 void client::sendTags(){
     const char* blockTag = "minecraft:block";
     const char* indestructibleTag = "features_cannot_replace";
-    byte data[MAX_VAR_INT + sizeof(indestructibleTag) + sizeof(blockTag)];
-    size_t offset = writeVarInt(data, 1);
+    byte data[(MAX_VAR_INT * 3) + sizeof(indestructibleTag) + sizeof(blockTag)];
+    size_t offset = writeVarInt(data, 2);
     offset += writeString(data + offset, blockTag, sizeof(blockTag));
+    offset += writeVarInt(data + offset, 0);
     offset += writeString(data + offset, indestructibleTag, sizeof(indestructibleTag));
     //TODO figure out a specific list of allowed block ids on the server
+    offset += writeVarInt(data + offset, 0);
+    if(this->state == CONFIG_STATE){
+        this->send(data, offset, UPDATE_TAGS);
+    }
+    else if(this->state == PLAY_STATE){
+        this->send(data, offset, UPDATE_TAGS_PLAY);
+    }
+}
+
+const char* client::getUsername() const{
+    return this->username;
 }

@@ -27,12 +27,12 @@ class lobby{
          @brief Gets the player count
          @return the player count
         */
-        unsigned int getPlayerCount();
+        unsigned int getPlayerCount() const;
         /*!
          @brief Gets the maximum number of players
          @return the maximum number of players
         */
-        unsigned int getMaxPlayers();
+        unsigned int getMaxPlayers() const;
         /*!
          @brief Sends a chat message to all players in the lobby
          @param message the message to send
@@ -47,22 +47,28 @@ class lobby{
          @brief Gets the registry codec
          @return the registry codec
         */
-        const byteArray* getRegistryCodec();
+        const byteArray* getRegistryCodec() const;
         /*!
          @brief Gets the weapons
          @return the weapons for this lobby instance
         */
-        const struct weapon* getWeapons();
+        const struct weapon* getWeapons() const;
         /*!
          @brief Gets the ammo
          @return the ammo for this lobby instance
         */
-        const struct ammo* getAmmo();
+        const struct ammo* getAmmo() const;
         /*!
          @brief Gets the associated map
          @return the map for this lobby instance
         */
-        const minecraftMap* getMap();
+        const minecraftMap* getMap() const;
+        /*!
+         @brief Gets the player at the specified index
+         @param n the index
+         @return the player at the specified index
+        */
+        const player* getPlayer(int n) const;
     private:
         pthread_t monitor;
         pthread_t main;

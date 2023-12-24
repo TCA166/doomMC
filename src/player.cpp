@@ -22,6 +22,7 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->pitch = 0;
     this->onGround = false;
     this->health = 20;
+    this->teleportId = 0;
 }
 
 void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
@@ -60,13 +61,15 @@ void player::setHealth(int health){
     this->send(data, offset, SET_HEALTH);
 }
 
+void player::setCenterChunk(int32_t x, int32_t z){
+    byte data[MAX_VAR_INT * 2];
+    size_t offset = writeVarInt(data, x);
+    offset += writeVarInt(data + offset, z);
+    this->send(data, offset, SET_CENTER_CHUNK);
+}
+
 void player::setLocation(double x, double y, double z){
-    {
-        byte data[MAX_VAR_INT * 2];
-        size_t offset = writeVarInt(data, (int32_t)x / 16);
-        offset += writeVarInt(data + offset, (int32_t)z / 16);
-        this->send(data, offset, SET_CENTER_CHUNK);
-    }
+    this->setCenterChunk((int32_t)floor(x / 16), (int32_t)floor(z / 16));
     {
         this->x = x;
         this->y = y;
@@ -80,7 +83,7 @@ void player::setLocation(double x, double y, double z){
         offset += writeBigEndianFloat(data + offset, this->pitch);
         data[offset] = 0;
         offset++;
-        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, this->teleportId++);
         this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
     }
 }
@@ -124,7 +127,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->eid = eid++;
     { //send LOGIN_PLAY
         if(this->protocol <= NO_CONFIG){
-            char* dimensionName = "minecraft:overworld";
+            const char* dimensionName = (const char*)"minecraft:overworld";
             const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
             byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
             size_t offset = writeBigEndianInt(data, eid);
@@ -192,7 +195,29 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0);
         this->send(data, offset, COMMANDS);
     }
-    //Recipe
+    {//update player list
+        
+        byte flag = 0x01 | 0x04 | 0x08 | 0x10;
+        unsigned int playerNum = this->currentLobby->getPlayerCount();
+        byte data[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
+        size_t offset = 0;
+        data[offset] = flag;
+        offset++;
+        offset += writeVarInt(data + offset, playerNum);
+        for(int i = 0; i < playerNum; i++){
+            const player* p = this->currentLobby->getPlayer(i);
+            *(data + offset) = p->getUUID();
+            offset += sizeof(UUID_t);
+            offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
+            offset += writeVarInt(data + offset, 0);
+            offset += writeVarInt(data + offset, 0);
+            data[offset] = true;
+            offset++;
+            offset += writeVarInt(data + offset, 0);
+        }
+        this->send(data, offset, PLAYER_INFO_UPDATE);
+    }
+    this->setCenterChunk(0, 0);
     //send chunk data and update light
     {
         this->send(NULL, 0, BUNDLE_DELIMITER);
@@ -215,6 +240,19 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         }
         this->send(NULL, 0, BUNDLE_DELIMITER);
     }
+    {//send initialize world border
+        byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
+        size_t offset = 0;
+        offset += writeBigEndianDouble(data, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 1000);
+        offset += writeVarInt(data + offset, 0); //TODO should be varLong
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        this->send(data, offset, INITIALIZE_WORLD_BORDER);
+    }
     //send set default spawn position
     {
         byte data[sizeof(position) + sizeof(float)];
@@ -229,15 +267,16 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(0, 0, 0);
-    //update player list
-    //TODO
+    printf("Player %s joined lobby\n", this->username);
 }
 
 int player::handlePacket(packet* p){
+    printf("packet id: %d\n", p->packetId);
     //TODO sync and expand
     if(this->state != PLAY_STATE){
         return -1;
     }
+    
     int offset = 0;
     switch(p->packetId){
         case CHAT_MESSAGE:{
@@ -327,7 +366,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     //block entities
     offset += writeVarInt(data + offset, 0);
     //Trust edges
-    data[offset] = 1;
+    data[offset] = true;
     offset++;
     {//bit sets for sky light
         int64_t zero = 0;
@@ -343,4 +382,8 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     offset += writeVarInt(data + offset, 0);
     this->send(data, offset, CHUNK_DATA_AND_UPDATE_LIGHT);
     free(data);
+}
+
+UUID_t player::getUUID() const{
+    return this->uuid;
 }

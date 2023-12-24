@@ -63,6 +63,11 @@ class player : public client{
          @brief Initializes the player for play state
         */
         void startPlay(int32_t eid, lobby* assignedLobby);
+        /*!
+         @brief Gets the UUID of the player
+         @return the UUID
+        */
+        UUID_t getUUID() const;
         int heldSlot;
     private:
         double x, y, z;
@@ -75,6 +80,8 @@ class player : public client{
         lobby* currentLobby;
         int32_t eid;
         void sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ);
+        void setCenterChunk(int chunkX, int chunkZ);
+        unsigned long teleportId;
 };
 
 #endif
