@@ -438,11 +438,19 @@ static size_t writeIntToPackedArray(uint64_t* buff, int value, size_t offset, ui
     return offset + bitsPerEntry;
 }
 
+uint64_t writePackedLong(const int32_t* val, int perLong, int index, uint8_t bpe){
+    uint64_t l = 0;
+    for(int n = 0; n < perLong; n++){
+        writeIntToPackedArray(&l, val[index * perLong + n], n * bpe, bpe);
+    }
+    return l;
+}
+
 byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe){
     byteArray result = nullByteArray;
-    const size_t longCount = (len / 64) * bpe;
+    const int perLong = (int)(64 / bpe);
+    const size_t longCount = (size_t)ceilf((float)len / (float)perLong);
     result.bytes = malloc((longCount * sizeof(int64_t)) + MAX_VAR_INT);
-    const int perLong = (int)((len / 64) / bpe);
     result.len += writeVarInt(result.bytes + result.len, longCount);
     for(int i = 0; i < longCount; i++){
         uint64_t l = 0;

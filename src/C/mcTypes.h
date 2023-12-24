@@ -422,4 +422,14 @@ size_t writeBigEndianDouble(byte* buff, double d);
 */
 byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, size_t sectionCount, size_t globalPaletteSize);
 
+/*!
+ @brief Writes perLong ints to a long
+ @param val the array to write
+ @param perLong the amount of ints to write to a long
+ @param index the index of the long to write to
+ @param bpe the amount of bits per element
+ @return the encoded long
+*/
+uint64_t writePackedLong(const int32_t* val, int perLong, int index, uint8_t bpe);
+
 #endif

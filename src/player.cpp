@@ -5,6 +5,7 @@
 extern "C"{
     #include <string.h>
     #include <stdlib.h>
+    #include <math.h>
 }
 
 //https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
@@ -289,22 +290,34 @@ int player::handlePacket(packet* p){
 
 void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){
     const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 3);
-    byte* data = (byte*)malloc((sizeof(int32_t) * 2) + 1 + (sizeof(int16_t)) + (3 + 15 + 6));
+    byte* data = (byte*)malloc((sizeof(int32_t) * 2) + (sizeof(int16_t) * 2) + (17));
     size_t offset = 0;
     offset += writeBigEndianInt(data + offset, chunkX);
     offset += writeBigEndianInt(data + offset, chunkZ);
-    data[offset] = TAG_COMPOUND;
-    offset++;
-    offset += writeBigEndianShort(data + offset, 0);
-    data[offset] = TAG_LONG_ARRAY;
-    offset++;
-    offset += writeBigEndianShort(data + offset, 15);
-    memcpy(data + offset, "MOTION_BLOCKING", 15);
-    offset += 15;
-    //FIXME actually send heightmap data
-    offset += writeBigEndianShort(data + offset, 0);
-    data[offset] = TAG_INVALID;
-    offset++;
+    { //heightmap NBT
+        data[offset] = TAG_COMPOUND;
+        offset++;
+        offset += writeBigEndianShort(data + offset, 0);
+        data[offset] = TAG_LONG_ARRAY;
+        offset++;
+        offset += writeBigEndianShort(data + offset, 15);
+        memcpy(data + offset, "MOTION_BLOCKING", 15);
+        offset += 15;
+        const uint8_t bpe = ceil(log2((sectionCount * 16) + 1));
+        const int perLong = (int)(64 / bpe);
+        const size_t longCount = (size_t)ceilf((float)256 / (float)perLong);
+        //MAYBE actually implment heightmap, for now it just sends a whole bunch of zeroes
+        uint64_t* heightmapData = (uint64_t*)calloc(longCount, sizeof(int64_t));
+        size_t bytesSz = longCount * sizeof(int64_t);
+        data = (byte*)realloc(data, offset + bytesSz + sizeof(int32_t) + 2 + MAX_VAR_INT);
+        offset += writeBigEndianInt(data + offset, longCount);
+        for(int i = 0; i < longCount; i++){
+            offset += writeBigEndianLong(data + offset, heightmapData[i]);
+        }
+        free(heightmapData);
+        data[offset] = TAG_INVALID;
+        offset++;
+    }
     byteArray buff = writeSections(sections, NULL, sectionCount, 0);
     offset += writeVarInt(data + offset, (int32_t)buff.len);
     data = (byte*)realloc(data, offset + buff.len + neededLater);
@@ -313,6 +326,9 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     free(buff.bytes);
     //block entities
     offset += writeVarInt(data + offset, 0);
+    //Trust edges
+    data[offset] = 1;
+    offset++;
     {//bit sets for sky light
         int64_t zero = 0;
         int64_t one = 0xFFFFFFFFFFFFFFFF; //16 times F
