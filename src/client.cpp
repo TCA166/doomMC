@@ -57,7 +57,6 @@ void client::disconnect(){
     }
     close(this->fd);
     this->fd = -1;
-    this->index = -1;
     this->serv->disconnectClient(this->index);
 }
 

@@ -26,6 +26,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
         int activity = epoll_wait(thisLobby->epollFd, events, thisLobby->maxPlayers, infiniteTime);
         if(activity > 0){
             for(int i = 0; i < activity; i++){
+                printf("Event %d\n", events[i].events);
                 player* p = (player*)events[i].data.ptr;
                 if(events[i].events & EPOLLRDHUP){
                     thisLobby->removePlayer(p);
