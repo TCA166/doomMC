@@ -10,6 +10,8 @@ extern "C"{
 
 #define sectionMax 24
 
+#define infiniteTime -1 //infinity for epoll_wait
+
 #include "player.hpp"
 #include "weapons.hpp"
 #include "map/minecraftMap.hpp"
@@ -18,6 +20,7 @@ class lobby{
     public:
         lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammom, const minecraftMap* map);
         lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map);
+        ~lobby();
         /*!
          @brief Adds a player to the lobby, and initializes the player inside the lobby
          @param p the player to add
@@ -84,7 +87,7 @@ class lobby{
         const struct weapon* weapons;
         const struct ammo* ammo;
         const minecraftMap* map;
-        int monitorPipe[2]; //this pipe is used to wake up the monitor thread from select() by writing to it
+        int epollFd;
 };
 
 #endif

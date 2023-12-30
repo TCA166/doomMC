@@ -27,6 +27,7 @@ class client{
         int compression; //the compression level established with the client
         int32_t protocol; //the protocol version of the client
         UUID_t uuid; //the uuid of the client
+        int index; //the index of the client in server/lobby list
     private:
         server* serv;
         /*!
@@ -41,8 +42,9 @@ class client{
          @param username the username of the client
          @param compression the compression level established with the client
         */
+        client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, int index);
         client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol);
-        client(server* server, int fd);
+        client(server* server, int fd, int index);
         /*!
          @brief Constructs a client instance with all values set to 0 or NULL
         */
@@ -109,6 +111,16 @@ class client{
          @brief Sends the client the feature flags
         */
         void sendFeatureFlags();
+        /*!
+         @brief Gets the index of the client
+         @return the index of the client
+        */
+        int getIndex();
+        /*!
+         @brief Sets the index of the client
+         @param index the index to set
+        */
+        void setIndex(int index);
 };
 
 #endif

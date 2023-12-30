@@ -13,6 +13,7 @@ extern  "C"{
     #include <fcntl.h>
     #include <string.h>
     #include "../cNBT/nbt.h"
+    #include <sys/epoll.h>
 }
 
 #define PORT 8080
@@ -26,7 +27,7 @@ extern  "C"{
 
 #define mapFolder "maps/"
 
-server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec) : lobbyCount(lobbyCount), maxConnected(maxConnected){
+server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
     buffer codec = nbt_dump_binary(registryCodec);
     this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
@@ -60,7 +61,12 @@ void server::createClient(int socket){
     }
     for(int i = 0; i < MAX_CLIENTS; i++){
         if(this->getClient(i) == NULL){
-            this->connected[i] = new client(this, socket);
+            this->connected[i] = new client(this, socket, i);
+            //add newSocket to epoll
+            epoll_event event;
+            event.events = EPOLLIN | EPOLLRDHUP;
+            event.data.ptr = this->connected[i];
+            epoll_ctl(this->epollFd, EPOLL_CTL_ADD, socket, &event);
             break;
         }
     }
@@ -68,9 +74,14 @@ void server::createClient(int socket){
 }
 
 void server::disconnectClient(int n){
-    delete this->connected[n];
-    this->connected[n] = NULL;
-    this->connectedCount--;
+    client* c = this->connected[n];
+    if(c != NULL){
+        this->connected[n] = NULL;
+        this->connectedCount--;
+        epoll_ctl(this->epollFd, EPOLL_CTL_DEL, c->getFd(), NULL);
+        c->disconnect();
+        delete c;
+    }
 }
 
 client* server::getClient(int n){
@@ -168,60 +179,48 @@ int main(int argc, char *argv[]){
             return EXIT_FAILURE;
         }
     }
-    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec);
+    int epollFd = epoll_create1(0);
+    if(epollFd < 0){
+        perror("epoll_create1");
+        return EXIT_FAILURE;
+    }
+    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec, epollFd);
     printf("Server started on port %d\n", PORT);
-    //set of socket descriptors
-    fd_set readfds;
+    {
+        epoll_event masterEvent;
+        masterEvent.events = EPOLLIN;
+        masterEvent.data.fd = masterSocket;
+        epoll_ctl(epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent);
+    }
+    epoll_event events[MAX_CLIENTS];
     while(true){
-        //clear the socket set in case we disconnected with somebody along the line
-        FD_ZERO(&readfds);
-        //add master socket to set
-        FD_SET(masterSocket, &readfds);
-        //readd all the remaining clients to the set
-        for(int i = 0; i < MAX_CLIENTS; i++){
-            //socket descriptor
-            if(mainServer.getClient(i) != NULL){
-                int sd = mainServer.getClient(i)->getFd();
-                //if valid socket descriptor then add to read list
-                if(sd > 0){
-                    FD_SET(sd, &readfds);
-                }
-                //highest file descriptor number, need it for the select function
-                if(sd > maxSd){
-                    maxSd = sd;
-                }
-            }
-        }
         //wait for an activity on one of the sockets, timeout is NULL, so wait indefinitely
-        int activity = select(maxSd + 1, &readfds, NULL, NULL, NULL);
+        int activity = epoll_wait(epollFd, events, MAX_CLIENTS, infiniteTime);
         if((activity < 0) && (errno != EINTR)){
             perror("select");
             return EXIT_FAILURE;
         }
-        //If something happened on the master socket, then its an incoming connection
-        if(FD_ISSET(masterSocket, &readfds)){
-            int newSocket;
-            if ((newSocket = accept(masterSocket, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0){
-                perror("accept");
-                return EXIT_FAILURE;
-            }
-            //set newSocket to non blocking
-            if(fcntl(newSocket, F_SETFL, fcntl(newSocket, F_GETFL, 0) | O_NONBLOCK) < 0){
-                perror("fcntl");
-                return EXIT_FAILURE;
-            }
-            //add new socket to list
-            mainServer.createClient(newSocket);
-        }
-        //do IO on a different socket
-        for(int i = 0; i < MAX_CLIENTS; i++){
-            client* c = mainServer.getClient(i);
-            if(c == NULL){
+        for(int i = 0; i < activity; i++){
+            if(events[i].events & EPOLLRDHUP){
+                client* c = (client*)events[i].data.ptr;
+                mainServer.disconnectClient(c->getIndex());
                 continue;
             }
-            byte b;
-            int thisFd = c->getFd();
-            if(FD_ISSET(thisFd, &readfds)){
+            if(events[i].data.fd == masterSocket){
+                int newSocket;
+                if((newSocket = accept(masterSocket, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0){
+                    perror("accept");
+                    return EXIT_FAILURE;
+                }
+                //set newSocket to non blocking
+                if(fcntl(newSocket, F_SETFL, fcntl(newSocket, F_GETFL, 0) | O_NONBLOCK) < 0){
+                    perror("fcntl");
+                    return EXIT_FAILURE;
+                }
+                mainServer.createClient(newSocket);
+            }
+            else if(events[i].data.ptr != NULL){
+                client* c = (client*)events[i].data.ptr;
                 packet p = c->getPacket();
                 int res = 1;
                 while(!packetNull(p)){
@@ -234,12 +233,11 @@ int main(int argc, char *argv[]){
                     p = c->getPacket();
                 }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
-                    mainServer.disconnectClient(i);
+                    mainServer.disconnectClient(c->getIndex());
                 }
                 else if(c->getState() == PLAY_STATE){
                     delete c;
                 }
-
             }
         }
     }

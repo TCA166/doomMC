@@ -9,6 +9,10 @@ extern "C" {
     #include <errno.h>
 }
 
+client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, int index) : client(server, fd, state, username, compression, protocol){
+    this->index = index;
+}
+
 client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol){
     this->serv = server;
     this->fd = fd;
@@ -18,13 +22,14 @@ client::client(server* server, int fd, state_t state, char* username, int compre
     this->protocol = protocol;
 }
 
-client::client(server* server, int fd){
+client::client(server* server, int fd, int index){
     this->serv = server;
     this->fd = fd;
     this->state = NONE_STATE;
     this->username = NULL;
     this->compression = NO_COMPRESSION;
     this->protocol = 0;
+    this->index = index;
 }
 
 client::client(){
@@ -52,6 +57,8 @@ void client::disconnect(){
     }
     close(this->fd);
     this->fd = -1;
+    this->index = -1;
+    this->serv->disconnectClient(this->index);
 }
 
 packet client::getPacket(){
@@ -209,4 +216,12 @@ void client::sendTags(){
 
 const char* client::getUsername() const{
     return this->username;
+}
+
+int client::getIndex(){
+    return this->index;
+}
+
+void client::setIndex(int index){
+    this->index = index;
 }

@@ -10,6 +10,7 @@ extern "C"{
     #include <string.h>
     #include "../cNBT/nbt.h"
     #include <unistd.h>
+    #include <sys/epoll.h>
 }
 
 typedef void*(*thread)(void*);
@@ -18,56 +19,32 @@ const byteArray* lobby::getRegistryCodec() const{
     return this->registryCodec;
 }
 
+//this is static so 'this' doesn't work
 void* lobby::monitorPlayers(lobby* thisLobby){
-    fd_set readfds;
-    int maxSd;
+    epoll_event events[thisLobby->maxPlayers];
     while(true){
-        FD_ZERO(&readfds);
-        FD_SET(thisLobby->monitorPipe[0], &readfds);
-        maxSd = thisLobby->monitorPipe[0];
-        for(int i = 0; i < thisLobby->maxPlayers; i++){
-            if(thisLobby->players[i] == NULL){
-                continue;
-            }
-            int fd = thisLobby->players[i]->getFd();
-            printf("fd: %d\n", fd);
-            FD_SET(fd, &readfds);
-            if(fd > maxSd){
-                maxSd = fd;
-            }
-        }
-        //FIXME select doesn't stop on addPlayer USE exceptfds ?
-        int activity = select(maxSd + 1, &readfds, NULL, NULL, NULL);
+        int activity = epoll_wait(thisLobby->epollFd, events, thisLobby->maxPlayers, infiniteTime);
         if(activity > 0){
-            if(FD_ISSET(thisLobby->monitorPipe[0], &readfds)){
-                char buf[1];
-                read(thisLobby->monitorPipe[0], buf, 1);
-            }
-            for(int i = 0; i < thisLobby->playerCount; i++){
-                if(thisLobby->players[i] == NULL){
+            for(int i = 0; i < activity; i++){
+                player* p = (player*)events[i].data.ptr;
+                if(events[i].events & EPOLLRDHUP){
+                    thisLobby->removePlayer(p);
+                    delete p;
                     continue;
                 }
-                int fd = thisLobby->players[i]->getFd();
-                if(FD_ISSET(fd, &readfds)){
-                    packet p = thisLobby->players[i]->getPacket();
-                    while(!packetNull(p)){
-                        int res = thisLobby->players[i]->handlePacket(&p);
-                        printf("res: %d\n", res);
-                        if(res < 1){
-                            break;
-                        }
-                        free(p.data);
-                        p = thisLobby->players[i]->getPacket();
+                packet pack = p->getPacket();
+                while(!packetNull(pack)){
+                    int res = p->handlePacket(&pack);
+                    if(res < 1){
+                        break;
                     }
-                    if(errno != EAGAIN && errno == EWOULDBLOCK){
-                        delete thisLobby->players[i];
-                        thisLobby->players[i] = NULL;
-                    }
+                    free(pack.data);
+                    pack = p->getPacket();
                 }
             }
         }
-        else if(activity < 0 && errno != EINTR && errno != EBADF){
-            perror("monitor select");
+        else if(activity < 0 && errno != EINTR){
+            perror("epoll_wait");
             return NULL;
         }
     }
@@ -77,16 +54,28 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     this->playerCount = 0;
     this->players = new player*[maxPlayers];
     memset(this->players, 0, sizeof(player*) * maxPlayers);
+    this->epollFd = epoll_create1(0);
+    if(this->epollFd < 0){
+        perror("epoll_create1");
+        throw "Failed to create epoll instance";
+    }
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
-    }
-    if(pipe((int*)&this->monitorPipe) < 0){
-        throw "Failed to create monitor pipe";
     }
 }
 
 lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition, map){
 
+}
+
+lobby::~lobby(){
+    for(int i = 0; i < this->maxPlayers; i++){
+        if(this->players[i] != NULL){
+            delete this->players[i];
+        }
+    }
+    delete[] this->players;
+    close(this->epollFd);
 }
 
 unsigned int lobby::getPlayerCount() const{
@@ -101,8 +90,15 @@ void lobby::addPlayer(player* p){
     for(int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] == NULL){
             this->players[i] = p;
+            p->setIndex(i);
+            epoll_event event;
+            event.events = EPOLLIN | EPOLLRDHUP;
+            event.data.ptr = p;
+            if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, p->getFd(), &event) < 0){
+                perror("epoll_ctl");
+                return;
+            }
             p->startPlay(i, this);
-            write(this->monitorPipe[1], "\1", 1);
             break;
         }
     }
@@ -122,13 +118,11 @@ void lobby::sendMessage(char* message){
 }
 
 void lobby::removePlayer(player* p){
-    for(int i = 0; i < this->playerCount; i++){
-        if(this->players[i] == p){
-            this->players[i] = NULL;
-            this->playerCount--;
-            break;
-        }
+    if(epoll_ctl(this->epollFd, EPOLL_CTL_DEL, p->getFd(), NULL) < 0){
+        perror("epoll_ctl");
     }
+    this->players[p->getIndex()] = NULL;
+    this->playerCount--;
 }
 
 const struct weapon* lobby::getWeapons() const{
