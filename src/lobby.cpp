@@ -26,7 +26,11 @@ void* lobby::monitorPlayers(lobby* thisLobby){
         int activity = epoll_wait(thisLobby->epollFd, events, thisLobby->maxPlayers, infiniteTime);
         if(activity > 0){
             for(int i = 0; i < activity; i++){
-                printf("Event %d\n", events[i].events);
+                if(events[i].data.fd == thisLobby->epollPipe[0]){
+                    char buf[1];
+                    read(thisLobby->epollPipe[0], buf, 1);
+                    continue;
+                }
                 player* p = (player*)events[i].data.ptr;
                 if(events[i].events & EPOLLRDHUP){
                     thisLobby->removePlayer(p);
@@ -59,6 +63,17 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     if(this->epollFd < 0){
         perror("epoll_create1");
         throw "Failed to create epoll instance";
+    }
+    if(pipe(this->epollPipe) < 0){
+        perror("pipe");
+        throw "Failed to create pipe";
+    }
+    epoll_event event;
+    event.events = EPOLLIN;
+    event.data.fd = this->epollPipe[0];
+    if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, this->epollPipe[0], &event) < 0){
+        perror("epoll_ctl");
+        throw "Failed to add pipe to epoll instance";
     }
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
@@ -99,6 +114,7 @@ void lobby::addPlayer(player* p){
                 perror("epoll_ctl");
                 return;
             }
+            write(this->epollPipe[1], "\0", 1);
             p->startPlay(i, this);
             break;
         }

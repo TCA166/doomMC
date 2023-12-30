@@ -88,6 +88,7 @@ class lobby{
         const struct ammo* ammo;
         const minecraftMap* map;
         int epollFd;
+        int epollPipe[2];
 };
 
 #endif
