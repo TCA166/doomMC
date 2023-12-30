@@ -9,11 +9,10 @@ extern "C"{
     #include <errno.h>
     #include <string.h>
     #include "../cNBT/nbt.h"
+    #include <unistd.h>
 }
 
 typedef void*(*thread)(void*);
-
-#define timeout {60, 0}
 
 const byteArray* lobby::getRegistryCodec() const{
     return this->registryCodec;
@@ -21,9 +20,11 @@ const byteArray* lobby::getRegistryCodec() const{
 
 void* lobby::monitorPlayers(lobby* thisLobby){
     fd_set readfds;
-    int maxSd = 0;
+    int maxSd;
     while(true){
         FD_ZERO(&readfds);
+        FD_SET(thisLobby->monitorPipe[0], &readfds);
+        maxSd = thisLobby->monitorPipe[0];
         for(int i = 0; i < thisLobby->maxPlayers; i++){
             if(thisLobby->players[i] == NULL){
                 continue;
@@ -36,10 +37,14 @@ void* lobby::monitorPlayers(lobby* thisLobby){
             }
         }
         //FIXME select doesn't stop on addPlayer USE exceptfds ?
-        int activity = select(maxSd + 1, &readfds, NULL, NULL, &thisLobby->monitorTimeout);
+        int activity = select(maxSd + 1, &readfds, NULL, NULL, NULL);
         if(activity > 0){
+            if(FD_ISSET(thisLobby->monitorPipe[0], &readfds)){
+                char buf[1];
+                read(thisLobby->monitorPipe[0], buf, 1);
+            }
             for(int i = 0; i < thisLobby->playerCount; i++){
-                if (thisLobby->players[i] == NULL){
+                if(thisLobby->players[i] == NULL){
                     continue;
                 }
                 int fd = thisLobby->players[i]->getFd();
@@ -65,17 +70,18 @@ void* lobby::monitorPlayers(lobby* thisLobby){
             perror("monitor select");
             return NULL;
         }
-        thisLobby->monitorTimeout = timeout;
     }
 }
 
 lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const minecraftMap* map) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), map(map){
     this->playerCount = 0;
-    this->monitorTimeout = timeout; //60 seconds
     this->players = new player*[maxPlayers];
     memset(this->players, 0, sizeof(player*) * maxPlayers);
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
+    }
+    if(pipe((int*)&this->monitorPipe) < 0){
+        throw "Failed to create monitor pipe";
     }
 }
 
@@ -96,7 +102,7 @@ void lobby::addPlayer(player* p){
         if(this->players[i] == NULL){
             this->players[i] = p;
             p->startPlay(i, this);
-            this->monitorTimeout = {0, 0};
+            write(this->monitorPipe[1], "\1", 1);
             break;
         }
     }

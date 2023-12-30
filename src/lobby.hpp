@@ -80,11 +80,11 @@ class lobby{
          @param thisLobby this
         */
         static void* monitorPlayers(lobby* thisLobby);
-        struct timeval monitorTimeout; // the timeval struct used in monitorPlayers
         const byteArray* registryCodec;
         const struct weapon* weapons;
         const struct ammo* ammo;
         const minecraftMap* map;
+        int monitorPipe[2]; //this pipe is used to wake up the monitor thread from select() by writing to it
 };
 
 #endif
