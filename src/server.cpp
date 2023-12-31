@@ -3,6 +3,9 @@
 #include <iostream>
 #include "map/udmf.hpp"
 #include "map/minecraftMap.hpp"
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/basic_file_sink.h>
+#include <spdlog/sinks/stdout_sinks.h>
 
 extern  "C"{
     #include <sys/socket.h>
@@ -184,8 +187,18 @@ int main(int argc, char *argv[]){
         perror("epoll_create1");
         return EXIT_FAILURE;
     }
+    {//setup log
+        std::vector<spdlog::sink_ptr> sinks;
+        sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
+        sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>("server.log", true));
+        auto combined_logger = std::make_shared<spdlog::logger>("serverLogger", begin(sinks), end(sinks));
+        //register it if you need to access it globally
+        spdlog::register_logger(combined_logger);
+        spdlog::set_default_logger(combined_logger);
+        spdlog::flush_every(std::chrono::seconds(3));
+        spdlog::set_level(spdlog::level::debug);
+    }
     server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec, epollFd);
-    printf("Server started on port %d\n", PORT);
     {
         epoll_event masterEvent;
         masterEvent.events = EPOLLIN;
@@ -193,6 +206,7 @@ int main(int argc, char *argv[]){
         epoll_ctl(epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent);
     }
     epoll_event events[MAX_CLIENTS];
+    spdlog::info("Server started on port {}", PORT);
     while(true){
         //wait for an activity on one of the sockets, timeout is NULL, so wait indefinitely
         int activity = epoll_wait(epollFd, events, MAX_CLIENTS, infiniteTime);

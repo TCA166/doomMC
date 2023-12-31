@@ -121,6 +121,11 @@ class client{
          @param index the index to set
         */
         void setIndex(int index);
+        /*!
+         @brief Reads a packet from the associated file descriptor and blocks until a packet is read or the timeout is reached
+         @return the packet
+        */
+        packet getPacket(int timeout);
 };
 
 #endif

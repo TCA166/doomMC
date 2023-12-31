@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include "server.hpp"
+#include <spdlog/spdlog.h>
 
 extern "C" {
     #include <unistd.h>
@@ -7,6 +8,7 @@ extern "C" {
     #include <string.h>
     #include "../cJSON/cJSON.h"
     #include <errno.h>
+    #include <time.h>
 }
 
 client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, int index) : client(server, fd, state, username, compression, protocol){
@@ -49,6 +51,7 @@ void client::disconnect(){
     if(this->fd == -1){
         return;
     }
+    spdlog::debug("Disconnecting client {}({})", this->uuid, this->index);
     if(this->state == PLAY_STATE){
         this->send(NULL, 0, DISCONNECT_PLAY); //send disconnect packet
     }
@@ -66,14 +69,19 @@ packet client::getPacket(){
 }
 
 int client::send(byte* data, int length, byte packetId){
+    spdlog::debug("Sending packet {} to client {}", packetId, this->uuid);
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
-    if(res == -1 && errno == EPIPE){
-        this->disconnect();
+    if(res == -1){
+        spdlog::debug("Sending packet {} to {} failed", packetId, this->uuid);
+        if(errno == EPIPE){
+            this->disconnect();
+        }
     }
     return res;
 }
 
 int client::handlePacket(packet* p){
+    spdlog::debug("Handling packet {} from client {}", p->packetId, this->uuid);
     int offset = 0;
     switch(this->state){
         case NONE_STATE:{
@@ -223,4 +231,18 @@ int client::getIndex(){
 
 void client::setIndex(int index){
     this->index = index;
+}
+
+packet client::getPacket(int timeout){
+    packet p = this->getPacket();
+    clock_t begin = clock();
+    while(packetNull(p)){
+        if((double)(clock() - begin) / CLOCKS_PER_SEC >= timeout){
+            spdlog::debug("Timed out waiting for packet");
+            break;
+        }
+        p = this->getPacket();
+    }
+    spdlog::debug("Got packet {} after waiting", p.packetId);
+    return p;
 }

@@ -37,3 +37,6 @@ server
 
 #test files
 maps/*
+
+#logs
+*.log

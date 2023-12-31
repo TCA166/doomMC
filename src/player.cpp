@@ -1,12 +1,15 @@
 #include "player.hpp"
 #include "lobby.hpp"
 #include "server.hpp"
+#include <spdlog/spdlog.h>
 
 extern "C"{
     #include <string.h>
     #include <stdlib.h>
     #include <math.h>
 }
+
+#define timeout 2000
 
 //https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
 
@@ -127,39 +130,48 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->eid = eid++;
     { //send LOGIN_PLAY
         if(this->protocol <= NO_CONFIG){
-            const char* dimensionName = (const char*)"minecraft:overworld";
-            const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
-            byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
-            size_t offset = writeBigEndianInt(data, eid);
-            data[offset] = false; //not hardcore
-            offset++;
-            data[offset] = 0; //gamemode
-            offset++;
-            data[offset] = -1; //prev gamemode
-            offset++;
-            offset += writeVarInt(data + 7, 1);
-            offset += writeString(data + offset, dimensionName, 19);
-            //write the registry codec
-            memcpy(data + offset, registryCodec->bytes, registryCodec->len);
-            offset += registryCodec->len;
-            offset += writeString(data + offset, dimensionName, 19);
-            offset += writeString(data + offset, dimensionName, 19);
-            offset += writeBigEndianLong(data + offset, 0); //seed
-            offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
-            offset += writeVarInt(data + offset, 8); //draw distance
-            offset += writeVarInt(data + offset, 8); //sim distance
-            data[offset] = false; //reduced debug info
-            offset++;
-            data[offset] = false; //immediate respawn
-            offset++;
-            data[offset] = true; //debug
-            offset++;
-            data[offset] = false; //flat
-            offset++;
-            data[offset] = false; //death location
-            offset++;
-            offset += writeVarInt(data + offset, 0); //portal cooldown
-            int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+            {
+                const char* dimensionName = (const char*)"minecraft:overworld";
+                const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
+                byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
+                size_t offset = writeBigEndianInt(data, eid);
+                data[offset] = false; //not hardcore
+                offset++;
+                data[offset] = 0; //gamemode
+                offset++;
+                data[offset] = -1; //prev gamemode
+                offset++;
+                offset += writeVarInt(data + 7, 1);
+                offset += writeString(data + offset, dimensionName, 19);
+                //write the registry codec
+                memcpy(data + offset, registryCodec->bytes, registryCodec->len);
+                offset += registryCodec->len;
+                offset += writeString(data + offset, dimensionName, 19);
+                offset += writeString(data + offset, dimensionName, 19);
+                offset += writeBigEndianLong(data + offset, 0); //seed
+                offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
+                offset += writeVarInt(data + offset, 8); //draw distance
+                offset += writeVarInt(data + offset, 8); //sim distance
+                data[offset] = false; //reduced debug info
+                offset++;
+                data[offset] = false; //immediate respawn
+                offset++;
+                data[offset] = true; //debug
+                offset++;
+                data[offset] = false; //flat
+                offset++;
+                data[offset] = false; //death location
+                offset++;
+                offset += writeVarInt(data + offset, 0); //portal cooldown
+                int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+            }
+            {//handle client information and plugin message
+                packet p1 = this->getPacket(timeout);
+                packet p2 = this->getPacket(timeout);
+                if(p2.packetId != CLIENT_INFORMATION){
+                    printf("Client information packet not received\n");
+                }
+            }
         }
         else{//TODO implement new LOGIN_PLAY format
 
@@ -267,11 +279,32 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(0, 0, 0);
-    printf("Player %s joined lobby\n", this->username);
+    {//handle confirmation packets
+        packet pluginMessage = this->getPacket(timeout);
+        if(pluginMessage.packetId != PLUGIN_MESSAGE_2){
+            spdlog::error("Unexpected packetId {} 1", pluginMessage.packetId);
+        }
+        packet confirmSetPlayerPosition = this->getPacket(timeout);
+        if(confirmSetPlayerPosition.packetId != SET_PLAYER_POSITION_AND_ROTATION){
+            spdlog::error("Unexpected packetId {} 2", confirmSetPlayerPosition.packetId);
+        }
+        /*
+        packet confirmTeleportation = this->getPacket(timeout * 2);
+        if(packetNull(confirmTeleportation) || confirmTeleportation.packetId != CONFIRM_TELEPORTATION){
+            printf("Unexpected packetId 3\n");
+        }
+        else{
+            int tId = readVarInt(confirmTeleportation.data, NULL);
+            if(tId != this->teleportId - 1){
+                printf("Unexpected teleportId\n");
+            }
+        }*/
+    }
+    spdlog::info("Player {} joined lobby", this->username);
 }
 
 int player::handlePacket(packet* p){
-    printf("packet id: %d\n", p->packetId);
+    spdlog::debug("Handling packet {} from client {}", p->packetId, this->uuid);
     //TODO sync and expand
     if(this->state != PLAY_STATE){
         return -1;
