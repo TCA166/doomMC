@@ -14,6 +14,7 @@ class lobby;
 class player : public client{
     public :
         player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol);
+        virtual ~player();
         /*!
          @brief Handles a provided packet in reference to this instance
          @param p the packet to handle
@@ -64,10 +65,9 @@ class player : public client{
         */
         void startPlay(int32_t eid, lobby* assignedLobby);
         /*!
-         @brief Gets the UUID of the player
-         @return the UUID
+         @brief Disconnects the player
         */
-        UUID_t getUUID() const;
+        virtual void disconnect();
         int heldSlot;
     private:
         double x, y, z;

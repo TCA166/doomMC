@@ -62,10 +62,10 @@ class server{
         */
         client* getClient(int n);
         /*!
-         @brief Disconnects a client
-         @param n the index of the client to disconnect
+         @brief Removes a client
+         @param n the index of the client to remove
         */
-        void disconnectClient(int n);
+        void removeClient(int n);
         /*!
          @brief Adds a client to a random lobby with space
          @param c the client to add to the lobby

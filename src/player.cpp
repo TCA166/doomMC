@@ -165,13 +165,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 offset += writeVarInt(data + offset, 0); //portal cooldown
                 int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
             }
-            {//handle client information and plugin message
-                packet p1 = this->getPacket(timeout);
-                packet p2 = this->getPacket(timeout);
-                if(p2.packetId != CLIENT_INFORMATION){
-                    printf("Client information packet not received\n");
-                }
-            }
         }
         else{//TODO implement new LOGIN_PLAY format
 
@@ -279,27 +272,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(0, 0, 0);
-    {//handle confirmation packets
-        packet pluginMessage = this->getPacket(timeout);
-        if(pluginMessage.packetId != PLUGIN_MESSAGE_2){
-            spdlog::error("Unexpected packetId {} 1", pluginMessage.packetId);
-        }
-        packet confirmSetPlayerPosition = this->getPacket(timeout);
-        if(confirmSetPlayerPosition.packetId != SET_PLAYER_POSITION_AND_ROTATION){
-            spdlog::error("Unexpected packetId {} 2", confirmSetPlayerPosition.packetId);
-        }
-        /*
-        packet confirmTeleportation = this->getPacket(timeout * 2);
-        if(packetNull(confirmTeleportation) || confirmTeleportation.packetId != CONFIRM_TELEPORTATION){
-            printf("Unexpected packetId 3\n");
-        }
-        else{
-            int tId = readVarInt(confirmTeleportation.data, NULL);
-            if(tId != this->teleportId - 1){
-                printf("Unexpected teleportId\n");
-            }
-        }*/
-    }
     spdlog::info("Player {} joined lobby", this->username);
 }
 
@@ -355,7 +327,6 @@ int player::handlePacket(packet* p){
             byte flags = readByte(p->data, &offset);
             break;
         }
-        
     }
     return 1;
 }
@@ -417,6 +388,15 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     free(data);
 }
 
-UUID_t player::getUUID() const{
-    return this->uuid;
+void player::disconnect(){
+    if(this->fd == -1){
+        return;
+    }
+    spdlog::debug("Disconnecting client {}({})", this->uuid, this->index);
+    this->send(NULL, 0, DISCONNECT_PLAY); //send disconnect packet
+    this->currentLobby->removePlayer(this);
+}
+
+player::~player(){
+    client::~client();
 }

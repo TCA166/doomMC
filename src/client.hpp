@@ -97,7 +97,7 @@ class client{
         /*! 
          @brief Disconnects the client and sets the fd to -1
         */
-        void disconnect();
+        virtual void disconnect();
         /*!
          @brief Converts this client into a player
          @return a pointer to the new player instance
@@ -126,6 +126,11 @@ class client{
          @return the packet
         */
         packet getPacket(int timeout);
+        /*!
+         @brief Gets the UUID of the player
+         @return the UUID
+        */
+        UUID_t getUUID() const;
 };
 
 #endif

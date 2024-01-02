@@ -76,14 +76,14 @@ void server::createClient(int socket){
     connectedCount++;
 }
 
-void server::disconnectClient(int n){
+void server::removeClient(int n){
     client* c = this->connected[n];
     if(c != NULL){
         this->connected[n] = NULL;
         this->connectedCount--;
-        epoll_ctl(this->epollFd, EPOLL_CTL_DEL, c->getFd(), NULL);
-        c->disconnect();
-        delete c;
+        if(epoll_ctl(this->epollFd, EPOLL_CTL_DEL, c->getFd(), NULL) < 0){
+            perror("epoll_ctl");
+        }
     }
 }
 
@@ -106,6 +106,7 @@ void server::addToLobby(client* c){
     for(int i = 0; i < this->lobbyCount; i++){
         if(this->lobbies[i]->getPlayerCount() < this->lobbies[i]->getMaxPlayers()){
             player* p = c->toPlayer();
+            spdlog::debug("Adding client {}({}) to lobby {}", p->getUUID(), p->getIndex(), i);
             this->lobbies[i]->addPlayer(p);
             return;
         }
@@ -217,7 +218,8 @@ int main(int argc, char *argv[]){
         for(int i = 0; i < activity; i++){
             if(events[i].events & EPOLLRDHUP){
                 client* c = (client*)events[i].data.ptr;
-                mainServer.disconnectClient(c->getIndex());
+                mainServer.removeClient(c->getIndex());
+                delete c;
                 continue;
             }
             if(events[i].data.fd == masterSocket){
@@ -247,9 +249,14 @@ int main(int argc, char *argv[]){
                     p = c->getPacket();
                 }
                 if(errno != EAGAIN && errno != EWOULDBLOCK){
-                    mainServer.disconnectClient(c->getIndex());
+                    //FIXME segfault here because it keeps firing after removing from server
+                    spdlog::debug("Server handling disconnect of client {}({})", c->getUUID(), c->getIndex());
+                    mainServer.removeClient(c->getIndex());
+                    delete c;
                 }
                 else if(c->getState() == PLAY_STATE){
+                    spdlog::debug("Server losing track of client {}({})", c->getUUID(), c->getIndex());
+                    mainServer.removeClient(c->getIndex());
                     delete c;
                 }
             }

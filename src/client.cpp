@@ -22,6 +22,8 @@ client::client(server* server, int fd, state_t state, char* username, int compre
     this->username = username;
     this->compression = compression;
     this->protocol = protocol;
+    this->index = -1;
+    this->uuid = 0;
 }
 
 client::client(server* server, int fd, int index){
@@ -32,6 +34,7 @@ client::client(server* server, int fd, int index){
     this->compression = NO_COMPRESSION;
     this->protocol = 0;
     this->index = index;
+    this->uuid = 0;
 }
 
 client::client(){
@@ -43,29 +46,28 @@ client::client(){
 }
 
 client::~client(){
-    this->disconnect();
+    close(this->fd);
     free(this->username);
 }
 
 void client::disconnect(){
-    if(this->fd == -1){
+    if(this->index == -1){
         return;
     }
     spdlog::debug("Disconnecting client {}({})", this->uuid, this->index);
     if(this->state == PLAY_STATE){
+        spdlog::warn("Unexpected disconnect");
         this->send(NULL, 0, DISCONNECT_PLAY); //send disconnect packet
     }
     else if(this->state == LOGIN_STATE){
         this->send(NULL, 0, DISCONNECT_LOGIN); //send disconnect packet
     }
-    close(this->fd);
-    this->fd = -1;
-    this->serv->disconnectClient(this->index);
+    this->serv->removeClient(this->index);
+    this->index = -1;
 }
 
 packet client::getPacket(){
-    packet p = readPacket(this->fd, this->compression);
-    return p;
+    return readPacket(this->fd, this->compression);
 }
 
 int client::send(byte* data, int length, byte packetId){
@@ -176,7 +178,8 @@ void client::setUsername(char* username) {
 }
 
 player* client::toPlayer(){
-    player* p = new player(this->serv, this->fd, this->state, this->username, this->compression, this->protocol);
+    int newSocket = dup(this->fd);
+    player* p = new player(this->serv, newSocket, this->state, this->username, this->compression, this->protocol);
     return p;
 }
 
@@ -245,4 +248,8 @@ packet client::getPacket(int timeout){
     }
     spdlog::debug("Got packet {} after waiting", p.packetId);
     return p;
+}
+
+UUID_t client::getUUID() const{
+    return this->uuid;
 }

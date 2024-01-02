@@ -1,6 +1,7 @@
 #include "lobby.hpp"
 #include "player.hpp"
 #include "doom.hpp"
+#include <spdlog/spdlog.h>
 
 extern "C"{
     #include <stdlib.h>
@@ -107,7 +108,6 @@ void lobby::addPlayer(player* p){
         if(this->players[i] == NULL){
             this->players[i] = p;
             p->setIndex(i);
-            p->startPlay(i, this);
             epoll_event event;
             event.events = EPOLLIN | EPOLLRDHUP;
             event.data.ptr = p;
@@ -116,6 +116,7 @@ void lobby::addPlayer(player* p){
                 return;
             }
             write(this->epollPipe[1], "\0", 1);
+            p->startPlay(i, this);
             break;
         }
     }

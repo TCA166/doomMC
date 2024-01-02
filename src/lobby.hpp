@@ -72,6 +72,7 @@ class lobby{
          @return the player at the specified index
         */
         const player* getPlayer(int n) const;
+        void disconnectPlayer(int n);
     private:
         pthread_t monitor;
         pthread_t main;
