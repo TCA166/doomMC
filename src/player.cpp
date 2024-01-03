@@ -222,11 +222,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
     }
-    this->setCenterChunk(0, 0);
+    minecraftMap* m = (minecraftMap*)this->currentLobby->getMap();
     //send chunk data and update light
     {
         this->send(NULL, 0, BUNDLE_DELIMITER);
-        minecraftMap* m = (minecraftMap*)this->currentLobby->getMap();
         //get width in chunks
         int chunkWidth = m->getWidth() / 16;
         //get length in chunks
@@ -258,12 +257,13 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0);
         this->send(data, offset, INITIALIZE_WORLD_BORDER);
     }
+    position spawn = m->getSpawn();
+    this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
     //send set default spawn position
     {
         byte data[sizeof(position) + sizeof(float)];
         size_t offset = 0;
-        position p = toPosition(0, 0, 0);
-        offset += writeBigEndianLong(data + offset, p);
+        offset += writeBigEndianLong(data + offset, spawn);
         //angle
         offset += writeBigEndianFloat(data + offset, 0);
         this->send(data, offset, SET_DEFAULT_SPAWN_POSITION);
@@ -271,7 +271,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     //then send Set Container Content
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
-    this->setLocation(0, 0, 0);
+    this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
     spdlog::info("Player {} joined lobby", this->username);
 }
 

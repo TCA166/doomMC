@@ -21,6 +21,7 @@ class minecraftMap : public map{
          @return a palettedContainer containing the section. The palette is the same for all sections so don't free it
         */
         palettedContainer getSection(unsigned int chunkX, unsigned int chunkZ, unsigned int number);
+        position getSpawn();
 };
 
 #endif

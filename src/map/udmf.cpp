@@ -7,6 +7,14 @@ extern "C"{
     #include <stdio.h>
 }
 
+//https://zdoom.org/wiki/Standard_editor_numbers
+
+#define PLAYER_1_SPAWN 1
+#define PLAYER_2_SPAWN 2
+#define PLAYER_3_SPAWN 3
+#define PLAYER_4_SPAWN 4
+#define DEATHMATCH_START 11
+
 /*
 Doom maps are made up of sectors.
 Sectors are separated by linedefs.
@@ -409,6 +417,18 @@ udmf::udmf(const char* path){
         free(vertices);
         free(sidedefs);
         free(sectors);
+        this->spawns = NULL;
+        size_t spawnCount = 0;
+        //foreach thing
+        for(size_t i = 0; i < thingCount; i++){
+            thing* thing = things + i;
+            if(thing->type == PLAYER_1_SPAWN || thing->type == DEATHMATCH_START){
+                spawnCount++;
+                this->spawns = (position*)realloc(this->spawns, spawnCount * sizeof(position));
+                position* spawn = this->spawns + spawnCount - 1;
+                *spawn = toPosition(thing->x, thing->height, thing->y);
+            }
+        }
         //TODO handle things
         free(things);
     }

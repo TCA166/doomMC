@@ -2,6 +2,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+extern "C"{
+    #include <time.h>
+}
+
 minecraftMap::minecraftMap(map* source){
     this->width = source->getWidth();
     this->height = source->getHeight();
@@ -19,6 +23,8 @@ minecraftMap::minecraftMap(map* source){
             }
         }
     }
+    //TODO copy the spawns
+    this->spawnCount = source->getSpawnCount();
 }
 
 minecraftMap::~minecraftMap(){
@@ -50,4 +56,10 @@ palettedContainer minecraftMap::getSection(unsigned int chunkX, unsigned int chu
         }
     }
     return container;
+}
+
+position minecraftMap::getSpawn(){
+    srand((unsigned) time(NULL));
+    int random = rand();
+    return this->spawns[random % this->spawnCount];
 }

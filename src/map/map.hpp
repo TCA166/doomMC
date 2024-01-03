@@ -11,6 +11,7 @@ class map{
         int32_t* getPalette();
         unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z);
         size_t getPaletteSize();
+        size_t getSpawnCount();
     protected:
         unsigned int width; //x
         unsigned int height; //y
@@ -18,6 +19,8 @@ class map{
         size_t paletteSize;
         int32_t* palette;
         int32_t*** blocks;
+        position* spawns;
+        size_t spawnCount;
 };
 
 #endif

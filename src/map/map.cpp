@@ -27,3 +27,7 @@ int32_t* map::getPalette(){
 size_t map::getPaletteSize(){
     return this->paletteSize;
 }
+
+size_t map::getSpawnCount(){
+    return this->spawnCount;
+}
