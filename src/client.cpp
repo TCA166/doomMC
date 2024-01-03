@@ -179,7 +179,9 @@ void client::setUsername(char* username) {
 
 player* client::toPlayer(){
     int newSocket = dup(this->fd);
-    player* p = new player(this->serv, newSocket, this->state, this->username, this->compression, this->protocol);
+    char* username = (char*)malloc(strlen(this->username) + 1);
+    strcpy(username, this->username);
+    player* p = new player(this->serv, newSocket, this->state, username, this->compression, this->protocol);
     return p;
 }
 

@@ -141,6 +141,7 @@ void lobby::removePlayer(player* p){
     }
     this->players[p->getIndex()] = NULL;
     this->playerCount--;
+    spdlog::debug("Removing player {}({}) from lobby", p->getUUID(), p->getIndex());
 }
 
 const struct weapon* lobby::getWeapons() const{

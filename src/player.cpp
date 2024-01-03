@@ -398,5 +398,5 @@ void player::disconnect(){
 }
 
 player::~player(){
-    client::~client();
+    spdlog::debug("Deleting player {}({})", this->uuid, this->index);
 }

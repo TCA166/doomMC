@@ -85,6 +85,9 @@ void server::removeClient(int n){
             perror("epoll_ctl");
         }
     }
+    else{
+        spdlog::warn("Attempted to remove null client {}", n);
+    }
 }
 
 client* server::getClient(int n){
@@ -96,13 +99,6 @@ cJSON* server::getMessage(){
 }
 
 void server::addToLobby(client* c){
-    for(int i = 0; i < this->connectedCount; i++){
-        if(this->connected[i] == c){
-            this->connected[i] = NULL;
-            this->connectedCount--;
-            break;
-        }
-    }
     for(int i = 0; i < this->lobbyCount; i++){
         if(this->lobbies[i]->getPlayerCount() < this->lobbies[i]->getMaxPlayers()){
             player* p = c->toPlayer();
@@ -248,13 +244,7 @@ int main(int argc, char *argv[]){
                     free(p.data);
                     p = c->getPacket();
                 }
-                if(errno != EAGAIN && errno != EWOULDBLOCK){
-                    //FIXME segfault here because it keeps firing after removing from server
-                    spdlog::debug("Server handling disconnect of client {}({})", c->getUUID(), c->getIndex());
-                    mainServer.removeClient(c->getIndex());
-                    delete c;
-                }
-                else if(c->getState() == PLAY_STATE){
+                if((errno != EAGAIN && errno != EWOULDBLOCK) || c->getState() == PLAY_STATE){
                     spdlog::debug("Server losing track of client {}({})", c->getUUID(), c->getIndex());
                     mainServer.removeClient(c->getIndex());
                     delete c;
