@@ -69,7 +69,7 @@ void* lobby::mainLoop(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const minecraftMap* map) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), map(map){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const map* lobbyMap) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), lobbyMap(lobbyMap){
     this->playerCount = 0;
     this->players = new player*[maxPlayers];
     memset(this->players, 0, sizeof(player*) * maxPlayers);
@@ -97,7 +97,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition, map){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map* lobbyMap) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition, lobbyMap){
 
 }
 
@@ -168,8 +168,8 @@ const struct ammo* lobby::getAmmo() const{
     return this->ammo;
 }
 
-const minecraftMap* lobby::getMap() const{
-    return this->map;
+const map* lobby::getMap() const{
+    return this->lobbyMap;
 }
 
 const player* lobby::getPlayer(int n) const{

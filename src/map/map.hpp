@@ -1,17 +1,30 @@
 #ifndef MAP_HPP
 #define MAP_HPP
 
-#include "../C/mcTypes.h"
+extern "C"{
+    #include "../C/mcTypes.h"
+}
+
+#define statesSize 4096
 
 class map{
-    friend class minecraftMap;
     public:
-        unsigned int getWidth(); 
-        unsigned int getHeight(); 
-        unsigned int getLength();
-        int32_t* getPalette();
-        unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z);
-        size_t getPaletteSize();
+        unsigned int getWidth() const; 
+        unsigned int getHeight() const; 
+        unsigned int getLength() const;
+        const int32_t* getPalette() const;
+        unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z) const;
+        size_t getPaletteSize() const;
+        /*!
+         @brief gets a section of the map
+         @param chunkX the x coordinate of the chunk
+         @param chunkZ the z coordinate of the chunk
+         @param number the y coordinate of the chunk
+         @return a palettedContainer containing the section. The palette is the same for all sections so don't free it
+        */
+        palettedContainer getSection(unsigned int chunkX, unsigned int chunkZ, unsigned int number) const;
+        position getSpawn() const;
+        virtual ~map();
     protected:
         unsigned int width; //x
         unsigned int height; //y

@@ -14,12 +14,12 @@ extern "C"{
 
 #include "player.hpp"
 #include "weapons.hpp"
-#include "map/minecraftMap.hpp"
+#include "map/map.hpp"
 
 class lobby{
     public:
-        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammom, const minecraftMap* map);
-        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const minecraftMap* map);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammom, const map* lobbyMap);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map* lobbyMap);
         ~lobby();
         /*!
          @brief Adds a player to the lobby, and initializes the player inside the lobby
@@ -65,7 +65,7 @@ class lobby{
          @brief Gets the associated map
          @return the map for this lobby instance
         */
-        const minecraftMap* getMap() const;
+        const map* getMap() const;
         /*!
          @brief Gets the player at the specified index
          @param n the index
@@ -92,7 +92,7 @@ class lobby{
         const byteArray* registryCodec;
         const struct weapon* weapons;
         const struct ammo* ammo;
-        const minecraftMap* map;
+        const map* lobbyMap;
         int epollFd;
         int epollPipe[2];
 };

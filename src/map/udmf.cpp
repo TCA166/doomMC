@@ -430,21 +430,12 @@ udmf::udmf(const char* path){
                 *spawn = toPosition((thing->x + xVector) / SCALE, (thing->height + heightVector) / SCALE, (thing->y + yVector) / SCALE);
             }
         }
-        spdlog::debug("Found {} spawns", this->spawnCount);
         //TODO handle things
         free(things);
-        spdlog::info("Loaded map {} with dimensions {}x{}x{}", path, this->width, this->height, this->length);
+        spdlog::info("Loaded udmf {} with dimensions {}x{}x{}", path, this->width, this->height, this->length);
     }
 }
 
 udmf::~udmf(){
-    for(unsigned int i = 0; i < this->width; i++){
-        for(unsigned int j = 0; j < this->height; j++){
-            free(this->blocks[i][j]);
-        }
-        free(this->blocks[i]);
-    }
-    free(this->blocks);
-    free(this->palette);
-    free(this->spawns);
+    
 }

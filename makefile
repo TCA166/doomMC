@@ -1,8 +1,8 @@
 
 all: server
 
-server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o -lspdlog -lfmt -lpthread -lz
+server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o
+	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o -lspdlog -lfmt -lpthread -lz
 
 lobby.o: src/lobby.cpp
 	g++ $(CFLAGS) -c src/lobby.cpp
@@ -13,11 +13,11 @@ player.o: src/player.cpp
 client.o: src/client.cpp
 	g++ $(CFLAGS) -c src/client.cpp
 
-maps.o : src/map/map.cpp src/map/udmf.cpp src/map/minecraftMap.cpp
+maps.o : src/map/map.cpp src/map/udmf.cpp src/map/mcr.cpp
 	g++ $(CFLAGS) -c src/map/map.cpp
 	g++ $(CFLAGS) -c src/map/udmf.cpp
-	g++ $(CFLAGS) -c src/map/minecraftMap.cpp
-	ld -relocatable map.o udmf.o minecraftMap.o -o maps.o
+	g++ $(CFLAGS) -c src/map/mcr.cpp
+	ld -relocatable map.o udmf.o mcr.o -o maps.o
 
 mcTypes.o: src/C/mcTypes.c
 	gcc $(CFLAGS) -c src/C/mcTypes.c
@@ -35,6 +35,9 @@ cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c cNBT
 
 cJSON.o: cJSON/cJSON.c
 	gcc cJSON/cJSON.c -o cJSON.o -c $(CFLAGS)
+
+regionParser.o: src/C/regionParser.c
+	gcc src/C/regionParser.c -o regionParser.o -c $(CFLAGS)
 
 clean:
 	rm -f *.o

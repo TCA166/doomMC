@@ -3,7 +3,7 @@
 
 #include "map.hpp"
 
-class udmf : private map{
+class udmf : public map{
     public:
         udmf(const char* path);
         virtual ~udmf();

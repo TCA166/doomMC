@@ -227,7 +227,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
     }
-    minecraftMap* m = (minecraftMap*)this->currentLobby->getMap();
+    const map* m = this->currentLobby->getMap();
     //send chunk data and update light
     {
         this->send(NULL, 0, BUNDLE_DELIMITER);

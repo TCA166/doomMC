@@ -2,7 +2,7 @@
 #include "player.hpp"
 #include <iostream>
 #include "map/udmf.hpp"
-#include "map/minecraftMap.hpp"
+#include "map/mcr.hpp"
 #include <spdlog/spdlog.h>
 #include <spdlog/sinks/basic_file_sink.h>
 #include <spdlog/sinks/stdout_sinks.h>
@@ -17,6 +17,7 @@ extern  "C"{
     #include <string.h>
     #include "../cNBT/nbt.h"
     #include <sys/epoll.h>
+    #include <dirent.h>
 }
 
 #define PORT 8080
@@ -35,10 +36,27 @@ server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long
     this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
     for(int i = 0; i < lobbyCount; i++){
-        udmf doomMap = udmf(mapFolder "TEXTMAP.txt");
-        minecraftMap* lobbyMap = new minecraftMap((map*)&doomMap);
-        lobby* l = new lobby(maxPlayers, &this->registryCodec, lobbyMap);
-        this->lobbies[i] = l;
+        DIR* dir = opendir(mapFolder);
+        if(dir == NULL){
+            perror("opendir");
+            return;
+        }
+        dirent* ent;
+        while((ent = readdir(dir)) != NULL){
+            if(ent->d_type == DT_REG){
+                spdlog::debug("Found map {}", ent->d_name);
+                map* newMap;
+                //check if the extension is .mcr
+                if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mcr") == 0){
+                    newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str());
+                }
+                else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
+                    newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
+                }
+                lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
+                this->lobbies[i] = l;
+            }
+        }
     }
     this->connectedCount = 0;
     this->connected = (client**)calloc(maxConnected, sizeof(client*));
