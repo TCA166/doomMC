@@ -20,30 +20,17 @@ minecraftRegion::minecraftRegion(const char* path){
     }
     chunk* rawChunks = getChunks(f);
     fclose(f);
-    for(int i = 0; i < chunkN; i++){
-        if(!chunkIsNull(rawChunks[i])){
-            nbt_node* node = nbt_parse_compressed(rawChunks[i].data, rawChunks[i].byteLength);
-            if(node == NULL){
-                throw "Could not parse chunk";
-            }
-            if(node->type != TAG_COMPOUND){
-                throw "Chunk is not a compound";
-            }
-            nbt_node* sectionsNode = nbt_find_by_name(node, "sections");
-            if(sectionsNode == NULL){
-                throw "Could not find sections node";
-            }
-            //TODO continue parsing
-            struct nbt_list* sectionsList = sectionsNode->payload.tag_list;
-            struct list_head* pos;
-            int n = 0;
-            //foreach section
-            list_for_each(pos, &sectionsList->entry){
-
+    for(int chunkX = 0; chunkX < 32; chunkX++){
+        for(int chunkZ = 0; chunkZ < 32; chunkZ++){
+            int i = coordsToIndex(chunkX, chunkZ);
+            if(!chunkIsNull(rawChunks[i])){
+                size_t sectionCount = 0;
+                palettedContainer* sections = getSections(rawChunks + i, &sectionCount);
+                
             }
         }
     }
-}   
+}
 
 minecraftRegion::~minecraftRegion(){
     //TODO

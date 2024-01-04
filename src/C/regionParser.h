@@ -39,3 +39,11 @@ typedef struct chunk{
  @return an array of chunks of length chunkN
 */
 chunk* getChunks(FILE* regionFile);
+
+/*!
+ @brief Gets the sections from the extracted chunk
+ @param chunk chunk that contains the sections
+ @param sectionN output pointer to where the returned array size shall be written
+ @return pointer to a newly allocated section array
+*/
+palettedContainer* getSections(chunk* chunk, size_t* sectionN);

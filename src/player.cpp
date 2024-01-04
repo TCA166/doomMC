@@ -168,7 +168,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 data[offset] = false; //death location
                 offset++;
                 offset += writeVarInt(data + offset, 0); //portal cooldown
-                int res = this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+                this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
             }
         }
         else{//TODO implement new LOGIN_PLAY format
@@ -365,7 +365,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         const int perLong = (int)(64 / bpe);
         const size_t longCount = (size_t)ceilf((float)256 / (float)perLong);
         //MAYBE actually implment heightmap, for now it just sends a whole bunch of zeroes
-        uint64_t* heightmapData = (uint64_t*)calloc(longCount, sizeof(int64_t));
+        uint64_t* heightmapData = (uint64_t*)calloc(longCount, sizeof(uint64_t));
         size_t bytesSz = longCount * sizeof(int64_t);
         data = (byte*)realloc(data, offset + bytesSz + sizeof(int32_t) + 2 + MAX_VAR_INT);
         offset += writeBigEndianInt(data + offset, longCount);

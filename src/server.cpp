@@ -39,7 +39,7 @@ server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long
         DIR* dir = opendir(mapFolder);
         if(dir == NULL){
             perror("opendir");
-            return;
+            throw "Could not open map folder";
         }
         dirent* ent;
         while((ent = readdir(dir)) != NULL){
@@ -162,7 +162,6 @@ int main(int argc, char *argv[]){
         perror("listen");
         return EXIT_FAILURE;
     }
-    int maxSd = masterSocket;
     //get the status.json file
     char* statusJson;
     {

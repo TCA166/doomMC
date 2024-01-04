@@ -87,3 +87,68 @@ chunk* getChunks(FILE* regionFile){
     }
     return chunks;
 }
+
+palettedContainer* getSections(chunk* chunk, size_t* sectionN){
+    nbt_node* node = nbt_parse_compressed(chunk->data, chunk->byteLength);
+    if(node == NULL){
+        return NULL;
+    }
+    if(node->type != TAG_COMPOUND){
+        return NULL;
+    }
+    nbt_node* sectionsNode = nbt_find_by_name(node, "sections");
+    if(sectionsNode == NULL){
+        return NULL;
+    }
+    *sectionN = list_length(sectionsNode->payload.tag_list->entry.flink);
+    palettedContainer* sections = (palettedContainer*)malloc(sizeof(palettedContainer) * *sectionN);
+    struct nbt_list* sectionsList = sectionsNode->payload.tag_list;
+    struct list_head* pos;
+    int n = 0;
+    //foreach section
+    list_for_each(pos, &sectionsList->entry){ 
+        //get the element
+        struct nbt_list* el = list_entry(pos, struct nbt_list, entry);
+        nbt_node* compound = el->data;
+        palettedContainer newSection; //create new object that will store this data
+        //get the block data
+        nbt_node* blockNode = nbt_find_by_name(compound, "block_states");
+        if(blockNode == NULL){
+            return NULL;
+        }
+        //get the individual block data
+        nbt_node* blockData = nbt_find_by_name(blockNode, "data");
+        if(blockData != NULL){
+            for(int i = 0; i < blockData->payload.tag_long_array.length; i++){
+                //TODO handle reading blockData->payload.tag_long_array.data[i]
+            }
+        }
+        else{ //it can be null in which case the entire sector is full of palette[0]
+            newSection.states = NULL;
+        }
+        //get the palette
+        nbt_node* palette = nbt_find_by_name(blockNode, "palette");
+        if(palette == NULL){
+            return NULL;
+        }
+        //const struct list_head* paletteHead = &palette->payload.tag_list->entry;
+        int* blockPalette = NULL;
+        unsigned int i = 0;
+        struct list_head* paletteCur;
+
+        //foreach element in palette
+        list_for_each(paletteCur, &palette->payload.tag_list->entry){
+            //get the list entry
+            struct nbt_list* pal = list_entry(paletteCur, struct nbt_list, entry);
+            nbt_node* string = nbt_find_by_name(pal->data, "Name");
+            //TODO convert string id to block id
+            i++;
+            blockPalette = realloc(blockPalette, (i + 1) * sizeof(int));
+        }
+        newSection.palette = blockPalette;
+        newSection.paletteSize = i;
+        sections[n] = newSection;
+        n++;
+    }
+    return sections;
+}
