@@ -23,8 +23,9 @@ minecraftMap::minecraftMap(map* source){
             }
         }
     }
-    //TODO copy the spawns
-    this->spawnCount = source->getSpawnCount();
+    this->spawnCount = source->spawnCount;
+    this->spawns = (position*)malloc(this->spawnCount * sizeof(position));
+    memcpy(this->spawns, source->spawns, this->spawnCount * sizeof(position));
 }
 
 minecraftMap::~minecraftMap(){

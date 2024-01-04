@@ -2,6 +2,7 @@
 #include <regex>
 #include <fstream>
 #include <streambuf>
+#include <spdlog/spdlog.h>
 
 extern "C"{
     #include <stdio.h>
@@ -418,19 +419,21 @@ udmf::udmf(const char* path){
         free(sidedefs);
         free(sectors);
         this->spawns = NULL;
-        size_t spawnCount = 0;
+        this->spawnCount = 0;
         //foreach thing
         for(size_t i = 0; i < thingCount; i++){
             thing* thing = things + i;
             if(thing->type == PLAYER_1_SPAWN || thing->type == DEATHMATCH_START){
-                spawnCount++;
-                this->spawns = (position*)realloc(this->spawns, spawnCount * sizeof(position));
-                position* spawn = this->spawns + spawnCount - 1;
-                *spawn = toPosition(thing->x, thing->height, thing->y);
+                this->spawnCount++;
+                this->spawns = (position*)realloc(this->spawns, this->spawnCount * sizeof(position));
+                position* spawn = this->spawns + this->spawnCount - 1;
+                *spawn = toPosition((thing->x + xVector) / SCALE, (thing->height + heightVector) / SCALE, (thing->y + yVector) / SCALE);
             }
         }
+        spdlog::debug("Found {} spawns", this->spawnCount);
         //TODO handle things
         free(things);
+        spdlog::info("Loaded map {} with dimensions {}x{}x{}", path, this->width, this->height, this->length);
     }
 }
 
@@ -443,4 +446,5 @@ udmf::~udmf(){
     }
     free(this->blocks);
     free(this->palette);
+    free(this->spawns);
 }

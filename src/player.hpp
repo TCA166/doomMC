@@ -7,6 +7,7 @@
 
 extern "C"{
     #include "C/mcTypes.h"
+    #include <time.h>
 }
 
 class lobby;
@@ -69,6 +70,15 @@ class player : public client{
         */
         virtual void disconnect();
         int heldSlot;
+        /*!
+         @brief Sends a keep alive packet to the player
+        */
+        void keepAlive();
+        /*!
+         @brief Gets the player's ping
+         @return the time difference between the last keep alive and now
+        */
+        time_t getPing();
     private:
         double x, y, z;
         bool onGround;
@@ -82,6 +92,7 @@ class player : public client{
         void sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ);
         void setCenterChunk(int chunkX, int chunkZ);
         unsigned long teleportId;
+        time_t lastKeepAlive;
 };
 
 #endif

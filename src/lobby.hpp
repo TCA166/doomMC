@@ -84,6 +84,11 @@ class lobby{
          @param thisLobby this
         */
         static void* monitorPlayers(lobby* thisLobby);
+        /*!
+         @brief Thread function to run the lobby
+         @param thisLobby this
+        */
+        static void* mainLoop(lobby* thisLobby);
         const byteArray* registryCodec;
         const struct weapon* weapons;
         const struct ammo* ammo;

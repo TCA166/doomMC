@@ -2,7 +2,7 @@
 all: server
 
 server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o log.o -lspdlog -lfmt -lpthread -lz
+	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o -lspdlog -lfmt -lpthread -lz
 
 lobby.o: src/lobby.cpp
 	g++ $(CFLAGS) -c src/lobby.cpp
@@ -35,9 +35,6 @@ cNBT.o: cNBT/buffer.c cNBT/nbt_parsing.c cNBT/nbt_treeops.c cNBT/nbt_util.c cNBT
 
 cJSON.o: cJSON/cJSON.c
 	gcc cJSON/cJSON.c -o cJSON.o -c $(CFLAGS)
-
-log.o: src/log.cpp
-	g++ $(CFLAGS) -c src/log.cpp
 
 clean:
 	rm -f *.o

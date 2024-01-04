@@ -56,6 +56,19 @@ void* lobby::monitorPlayers(lobby* thisLobby){
     }
 }
 
+void* lobby::mainLoop(lobby* thisLobby){
+    //do stuff 20 times a second
+    while(true){
+        usleep(50000);
+        for(int i = 0; i < thisLobby->maxPlayers; i++){
+            if(thisLobby->players[i] == NULL){
+                continue;
+            }
+            thisLobby->players[i]->keepAlive();
+        }
+    }
+}
+
 lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const minecraftMap* map) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), map(map){
     this->playerCount = 0;
     this->players = new player*[maxPlayers];
@@ -78,6 +91,9 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     }
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
         throw "Failed to create monitor thread";
+    }
+    if(pthread_create(&this->main, NULL, (thread)this->mainLoop, this) < 0){
+        throw "Failed to create main thread";
     }
 }
 

@@ -4,6 +4,7 @@
 #include "../C/mcTypes.h"
 
 class map{
+    friend class minecraftMap;
     public:
         unsigned int getWidth(); 
         unsigned int getHeight(); 
@@ -11,7 +12,6 @@ class map{
         int32_t* getPalette();
         unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z);
         size_t getPaletteSize();
-        size_t getSpawnCount();
     protected:
         unsigned int width; //x
         unsigned int height; //y

@@ -7,6 +7,7 @@ extern "C"{
     #include <string.h>
     #include <stdlib.h>
     #include <math.h>
+    #include <time.h>
 }
 
 #define timeout 2000
@@ -72,6 +73,7 @@ void player::setCenterChunk(int32_t x, int32_t z){
 }
 
 void player::setLocation(double x, double y, double z){
+    spdlog::debug("Setting location of player {} to {}, {}, {}", this->username, x, y, z);
     this->setCenterChunk((int32_t)floor(x / 16), (int32_t)floor(z / 16));
     {
         this->x = x;
@@ -106,12 +108,15 @@ void player::dealDamage(int damage, int32_t eid, int damageType){
 
 void player::sendMessage(char* message){
     size_t msgLen = strlen(message);
-    byte packet[sizeof(UUID_t) + (MAX_VAR_INT * 2) + 1 + msgLen];
-    *((UUID_t*)packet) = (UUID_t)0;
-    size_t sz1 = writeVarInt(packet + sizeof(UUID_t), 0);
-    *(byte*)(packet + sizeof(UUID_t) + sz1) = 0;
-    size_t sz2 = writeString(packet + sizeof(UUID_t) + sz1 + 1, message, msgLen);
-    this->send(packet, sizeof(UUID_t) + sz1 + 1 + sz2, PLAYER_CHAT_MESSAGE);
+    byte packet[4 + msgLen];
+    size_t offset = 0;
+    packet[offset] = TAG_STRING;
+    offset += writeBigEndianUShort(packet, msgLen);
+    memcpy(packet + offset, message, msgLen);
+    offset += msgLen;
+    packet[offset] = 0;
+    offset++;
+    this->send(packet, offset, SYSTEM_CHAT_MESSAGE);
 }
 
 void player::changeLobby(lobby* lobby){
@@ -271,7 +276,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     //then send Set Container Content
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
-    this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
+    this->setLocation((double)positionX(spawn), (double)positionY(spawn), (double)positionZ(spawn));
     spdlog::info("Player {} joined lobby", this->username);
 }
 
@@ -325,6 +330,16 @@ int player::handlePacket(packet* p){
             float forward = readFloat(p->data, &offset);
             this->x += forward;
             byte flags = readByte(p->data, &offset);
+            break;
+        }
+        case KEEP_ALIVE_2:{
+            this->lastKeepAlive = (time_t)readBigEndianLong(p->data, &offset);
+            //if the ping is greater than 20 s
+            if(this->getPing() > 20){
+                this->disconnect();
+                this->currentLobby->removePlayer(this);
+                delete this;
+            }
             break;
         }
     }
@@ -399,4 +414,14 @@ void player::disconnect(){
 
 player::~player(){
     spdlog::debug("Deleting player {}({})", this->uuid, this->index);
+}
+
+void player::keepAlive(){
+    byte data[sizeof(int64_t)];
+    size_t offset = writeBigEndianLong(data, (int64_t)time(NULL));
+    this->send(data, offset, KEEP_ALIVE);
+}
+
+time_t player::getPing(){
+    return time(NULL) - this->lastKeepAlive;
 }
