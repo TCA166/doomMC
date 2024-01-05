@@ -48,6 +48,7 @@ client::client(){
 client::~client(){
     close(this->fd);
     free(this->username);
+    spdlog::debug("Client {}({}) destroyed", this->uuid, this->index);
 }
 
 void client::disconnect(){
@@ -111,7 +112,7 @@ int client::handlePacket(packet* p){
                 size_t dataSz = writeString(data, json, sizeJson);
                 free(json);
                 return this->send(data, dataSz, STATUS_RESPONSE);
-                delete data;
+                delete[] data;
             }
             else if(p->packetId == PING_REQUEST){
                 int64_t val = readLong(p->data, &offset);
@@ -126,16 +127,17 @@ int client::handlePacket(packet* p){
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
                 this->uuid = readUUID(p->data, &offset);
-                byte* data = new byte[sizeof(this->uuid) + len + 1 + (MAX_VAR_INT * 2)];
-                *(UUID_t*)&data = uuid;
-                size_t sz1 = writeString(data + sizeof(uuid), this->username, len);
-                size_t sz2 = writeVarInt(data + sizeof(uuid) + sz1, 0);
-                this->send(data, sizeof(uuid) + sz1 + sz2, LOGIN_SUCCESS);
+                byte* data = new byte[sizeof(UUID_t) + len + 1 + (MAX_VAR_INT * 2)];
+                memcpy(data, &uuid, sizeof(uuid));
+                size_t dataOffset = sizeof(uuid);
+                dataOffset += writeString(data + dataOffset, this->username, len);
+                dataOffset += writeVarInt(data + dataOffset, 0);
+                this->send(data, dataOffset, LOGIN_SUCCESS);
                 if(this->protocol <= NO_CONFIG){
                     this->state = PLAY_STATE;
                     this->serv->addToLobby(this);
                 }
-                delete data;
+                delete[] data;
             }
             else if(p->packetId == LOGIN_ACKNOWLEDGED){
                 this->state = CONFIG_STATE;
@@ -195,6 +197,7 @@ void client::sendRegistryCodec(){
     byte* data = new byte[codec->len];
     memcpy(data, codec->bytes, codec->len);
     this->send(data, codec->len, REGISTRY_DATA);
+    delete[] data;
 }
 
 void client::sendFeatureFlags(){

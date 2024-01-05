@@ -117,7 +117,7 @@ void player::sendMessage(char* message){
     packet[offset] = 0;
     offset++;
     this->send(packet, offset, SYSTEM_CHAT_MESSAGE);
-    delete packet;
+    delete[] packet;
 }
 
 void player::changeLobby(lobby* lobby){
@@ -170,7 +170,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 offset++;
                 offset += writeVarInt(data + offset, 0); //portal cooldown
                 this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
-                delete data;
+                delete[] data;
             }
         }
         else{//TODO implement new LOGIN_PLAY format
@@ -228,7 +228,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             offset += writeVarInt(data + offset, 0);
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
-        delete data;
+        delete[] data;
     }
     const map* m = this->currentLobby->getMap();
     //send chunk data and update light
@@ -246,7 +246,12 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 }
                 this->sendChunk(sections, sectionMax, chunkX, chunkZ);
                 for(int i = 0; i < sectionMax; i++){
-                    free(sections[i].states);
+                    if(sections[i].states != NULL){
+                        free(sections[i].states);
+                    }
+                    else{
+                        free(sections[i].palette);
+                    }   
                 }
             }
         }

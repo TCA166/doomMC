@@ -50,7 +50,7 @@ class server{
          @param status the status message
          @param registryCodec parsed template registry codec
         */
-        server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* status, nbt_node* registryCodec, cJSON* version, int epollFd);
+        server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, cJSON* status, nbt_node* registryCodec, cJSON* version, int epollFd);
         /*!
          @brief Creates a new client instance
          @param socket the socket file descriptor associated with the client

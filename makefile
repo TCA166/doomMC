@@ -1,5 +1,11 @@
 
-CFLAGS += -Wunused-parameter -Werror -Wall -Wpedantic -Wunused-result
+CFLAGS += -Wunused-result -Wall -Wunused-parameter
+
+debug: CFLAGS+=-Werror -g
+debug: all
+
+fast: CFLAGS+=-Ofast 
+fast: clean all
 
 all: server
 

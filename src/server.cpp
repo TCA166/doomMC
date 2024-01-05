@@ -31,7 +31,7 @@ extern  "C"{
 
 #define mapFolder "maps/"
 
-server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec, cJSON* version, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
+server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, cJSON* message, nbt_node* registryCodec, cJSON* version, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
     buffer codec = nbt_dump_binary(registryCodec);
     this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
@@ -68,8 +68,9 @@ server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long
             this->lobbies[i] = l;
         }
     }
+    closedir(dir);
     this->connectedCount = 0;
-    this->connected = new client*[maxConnected];
+    this->connected = new client*[maxConnected]();
     this->message = message;
 }
 
@@ -87,6 +88,7 @@ unsigned int server::getPlayerCount(){
 
 void server::createClient(int socket){
     if(this->connectedCount >= this->maxConnected){
+        spdlog::warn("Server full");
         close(socket);
         return;
     }
@@ -98,6 +100,7 @@ void server::createClient(int socket){
             event.events = EPOLLIN | EPOLLRDHUP;
             event.data.ptr = this->connected[i];
             epoll_ctl(this->epollFd, EPOLL_CTL_ADD, socket, &event);
+            spdlog::debug("Added client {}({}) to server", this->connected[i]->getUUID(), this->connected[i]->getIndex());
             break;
         }
     }
@@ -281,6 +284,7 @@ int main(int argc, char *argv[]){
                     perror("fcntl");
                     return EXIT_FAILURE;
                 }
+                spdlog::debug("New connection from {}", inet_ntoa(address.sin_addr));
                 mainServer.createClient(newSocket);
             }
             else if(events[i].data.ptr != NULL){
@@ -304,5 +308,8 @@ int main(int argc, char *argv[]){
             }
         }
     }
+    nbt_free(codec);
+    cJSON_Delete(status);
+    cJSON_Delete(version);
     return EXIT_SUCCESS;
 }

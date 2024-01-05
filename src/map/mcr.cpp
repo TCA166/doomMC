@@ -36,6 +36,7 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
             if(!chunkIsNull(rawChunks[i])){
                 size_t sectionCount = 0;
                 palettedContainer* sections = getSections(rawChunks + i, &sectionCount, version);
+                free(rawChunks[i].data);
                 if(sections == NULL){
                     throw "Could not get sections";
                 }
@@ -57,23 +58,26 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
                             this->paletteSize++;
                         }
                     }
-                    if(sections[section].states == NULL){
-                        continue;
-                    }
-                    for(int y = 0; y < 16; y++){
-                        for(int x = 0; x < 16; x++){
-                            for(int z = 0; z < 16; z++){
-                                int32_t block = sections[section].states[statesFormula(x, y, z)];
-                                if(block != 0){
-                                    this->blocks[x + (chunkX * 16)][y + (section * 16)][z + (chunkZ * 16)] = sections[section].palette[block];
+                    if(sections[section].states != NULL){
+                        for(int y = 0; y < 16; y++){
+                            for(int x = 0; x < 16; x++){
+                                for(int z = 0; z < 16; z++){
+                                    int32_t block = sections[section].states[statesFormula(x, y, z)];
+                                    if(block != 0){
+                                        this->blocks[x + (chunkX * 16)][y + (section * 16)][z + (chunkZ * 16)] = sections[section].palette[block];
+                                    }
                                 }
                             }
                         }
                     }
+                    free(sections[section].states);
+                    free(sections[section].palette);
                 }
+                free(sections);
             }
         }
     }
+    free(rawChunks);
     spdlog::info("Loaded region file");
 }
 

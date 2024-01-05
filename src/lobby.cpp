@@ -54,7 +54,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
             return NULL;
         }
     }
-    delete events;
+    delete[] events;
 }
 
 void* lobby::mainLoop(lobby* thisLobby){
@@ -105,7 +105,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map*
 lobby::~lobby(){
     for(unsigned int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] != NULL){
-            delete this->players[i];
+            delete[] this->players[i];
         }
     }
     delete[] this->players;

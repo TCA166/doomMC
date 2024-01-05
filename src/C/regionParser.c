@@ -238,5 +238,6 @@ palettedContainer* getSections(chunk* chunk, size_t* sectionN, cJSON* version){
         }
         sections[y + 4] = newSection;
     }
+    nbt_free(node);
     return sections;
 }
