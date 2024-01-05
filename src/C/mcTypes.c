@@ -287,7 +287,7 @@ static inline size_t tagSize(const byte* buff, byte type){
 
 slot readSlot(const byte* buff, int* index){
     getIndex(index)
-    slot result = {};
+    slot result;
     result.present = readBool(buff, index);
     if(result.present){
         result.id = readVarInt(buff, index);
@@ -295,6 +295,11 @@ slot readSlot(const byte* buff, int* index){
         size_t sz = nbtSize(buff + *index, false);
         result.NBT = nbt_parse(buff + *index, sz);
         *index += sz;
+    }
+    else{
+        result.id = 0;
+        result.count = 0;
+        result.NBT = NULL;
     }
     return result;
 }
@@ -368,7 +373,7 @@ uint64_t readBigEndianULong(const byte* buff, int* index){
 }
 
 palettedContainer readPalettedContainer(const byte* buff, int* index, const int bitsLowest, const int bitsThreshold, const size_t globalPaletteSize){
-    palettedContainer result = {};
+    palettedContainer result;
     byte bitsPerEntry = readByte(buff, index);
     if(bitsPerEntry == 0){
         result.paletteSize = 1;
@@ -512,7 +517,7 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
 
 bitSet readBitSet(const byte* buff, int* index){
     getIndex(index)
-    bitSet result = {};
+    bitSet result;
     result.length = readVarInt(buff, index);
     result.data = calloc(result.length, sizeof(int64_t));
     for(int i = 0; i < result.length; i++){

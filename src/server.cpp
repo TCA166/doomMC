@@ -31,45 +31,55 @@ extern  "C"{
 
 #define mapFolder "maps/"
 
-server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
+server::server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* message, nbt_node* registryCodec, cJSON* version, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
     buffer codec = nbt_dump_binary(registryCodec);
     this->registryCodec = {codec.data, codec.len};
     this->lobbies = new lobby*[lobbyCount];
-    for(int i = 0; i < lobbyCount; i++){
-        DIR* dir = opendir(mapFolder);
-        if(dir == NULL){
-            perror("opendir");
-            throw "Could not open map folder";
-        }
-        dirent* ent;
-        while((ent = readdir(dir)) != NULL){
-            if(ent->d_type == DT_REG){
-                spdlog::debug("Found map {}", ent->d_name);
-                map* newMap;
-                //check if the extension is .mcr
-                if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mcr") == 0){
-                    newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str());
-                }
-                else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
-                    newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
-                }
-                lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
-                this->lobbies[i] = l;
+    DIR* dir = opendir(mapFolder);
+    if(dir == NULL){
+        perror("opendir");
+        throw "Could not open map folder";
+    }
+    for(unsigned int i = 0; i < lobbyCount; i++){
+        dirent* ent = readdir(dir);
+        if(ent == NULL){
+            dir = opendir(mapFolder);
+            if(dir == NULL){
+                perror("opendir");
+                throw "Could not open map folder";
             }
+            ent = readdir(dir);
+            if(ent == NULL){
+                perror("readdir2");
+                throw "Could not read map folder";
+            }
+        }
+        if(ent->d_type == DT_REG){
+            spdlog::debug("Found map {}", ent->d_name);
+            map* newMap;
+            //check if the extension is .mcr
+            if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mca") == 0){
+                newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str(), version);
+            }
+            else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
+                newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
+            }
+            lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
+            this->lobbies[i] = l;
         }
     }
     this->connectedCount = 0;
-    this->connected = (client**)calloc(maxConnected, sizeof(client*));
+    this->connected = new client*[maxConnected];
     this->message = message;
 }
 
-unsigned long server::getLobbyCount(){
+unsigned int server::getLobbyCount(){
     return this->lobbyCount;
 }
 
-unsigned long server::getPlayerCount(){
-    unsigned long playerCount = 0;
-    for(int i = 0; i < this->lobbyCount; i++){
+unsigned int server::getPlayerCount(){
+    unsigned int playerCount = 0;
+    for(unsigned int i = 0; i < this->lobbyCount; i++){
         playerCount += this->lobbies[i]->getPlayerCount();
     }
     return playerCount;
@@ -117,7 +127,7 @@ cJSON* server::getMessage(){
 }
 
 void server::addToLobby(client* c){
-    for(int i = 0; i < this->lobbyCount; i++){
+    for(unsigned int i = 0; i < this->lobbyCount; i++){
         if(this->lobbies[i]->getPlayerCount() < this->lobbies[i]->getMaxPlayers()){
             player* p = c->toPlayer();
             spdlog::debug("Adding client {}({}) to lobby {}", p->getUUID(), p->getIndex(), i);
@@ -133,6 +143,10 @@ const byteArray* server::getRegistryCodec(){
 }
 
 int main(int argc, char *argv[]){
+    int logLevel = spdlog::level::debug;
+    if(argc > 1){
+        logLevel = atoi(argv[1]);
+    }
     //socket that accepts new connections
     int masterSocket = socket(AF_INET, SOCK_STREAM, 0);
     if(masterSocket < 0){
@@ -146,10 +160,7 @@ int main(int argc, char *argv[]){
         return EXIT_FAILURE;
     }
     //master socket address
-    struct sockaddr_in address = {
-        .sin_family = AF_INET,
-        .sin_port = htons(PORT)
-    };
+    struct sockaddr_in address = {AF_INET, htons(PORT), INADDR_ANY};
     address.sin_addr.s_addr = INADDR_ANY;
     size_t addrlen = sizeof(address);
     //bind the master socket to localhost port 8080
@@ -163,7 +174,7 @@ int main(int argc, char *argv[]){
         return EXIT_FAILURE;
     }
     //get the status.json file
-    char* statusJson;
+    cJSON* status;
     {
         FILE* statusFile = fopen("status.json", "r");
         if(statusFile == NULL){
@@ -173,9 +184,14 @@ int main(int argc, char *argv[]){
         fseek(statusFile, 0, SEEK_END);
         long statusSize = ftell(statusFile);
         rewind(statusFile);
-        statusJson = (char*)calloc(statusSize + 1, sizeof(char));
+        char* statusJson = (char*)calloc(statusSize + 1, sizeof(char));
         fread(statusJson, 1, statusSize, statusFile);
         fclose(statusFile);
+        status = cJSON_ParseWithLength(statusJson, statusSize);
+        if(status == NULL){
+            perror("cJSON_Parse");
+            return EXIT_FAILURE;
+        }
     }
     nbt_node* codec;
     {
@@ -196,6 +212,25 @@ int main(int argc, char *argv[]){
             return EXIT_FAILURE;
         }
     }
+    cJSON* version;
+    {
+        FILE* versionFile = fopen("version.json", "r");
+        if(versionFile == NULL){
+            perror("fopen");
+            return EXIT_FAILURE;
+        }
+        fseek(versionFile, 0, SEEK_END);
+        long versionSize = ftell(versionFile);
+        rewind(versionFile);
+        char* versionJson = (char*)calloc(versionSize + 1, sizeof(char));
+        fread(versionJson, 1, versionSize, versionFile);
+        fclose(versionFile);
+        version = cJSON_ParseWithLength(versionJson, versionSize);
+        if(version == NULL){
+            perror("cJSON_Parse");
+            return EXIT_FAILURE;
+        }
+    }
     int epollFd = epoll_create1(0);
     if(epollFd < 0){
         perror("epoll_create1");
@@ -210,9 +245,9 @@ int main(int argc, char *argv[]){
         spdlog::register_logger(combined_logger);
         spdlog::set_default_logger(combined_logger);
         spdlog::flush_every(std::chrono::seconds(3));
-        spdlog::set_level(spdlog::level::debug);
+        spdlog::set_level((spdlog::level::level_enum)logLevel);
     }
-    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, cJSON_Parse(statusJson), codec, epollFd);
+    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, status, codec, version, epollFd);
     {
         epoll_event masterEvent;
         masterEvent.events = EPOLLIN;

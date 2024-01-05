@@ -65,8 +65,8 @@ position map::getSpawn() const{
 }
 
 map::~map(){
-    for(int x = 0; x < this->width; x++){
-        for(int y = 0; y < this->height; y++){
+    for(unsigned int x = 0; x < this->width; x++){
+        for(unsigned int y = 0; y < this->height; y++){
             free(this->blocks[x][y]);
         }
         free(this->blocks[x]);

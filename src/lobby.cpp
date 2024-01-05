@@ -22,7 +22,7 @@ const byteArray* lobby::getRegistryCodec() const{
 
 //this is static so 'this' doesn't work
 void* lobby::monitorPlayers(lobby* thisLobby){
-    epoll_event events[thisLobby->maxPlayers];
+    epoll_event* events = new epoll_event[thisLobby->maxPlayers];
     while(true){
         int activity = epoll_wait(thisLobby->epollFd, events, thisLobby->maxPlayers, infiniteTime);
         if(activity > 0){
@@ -54,13 +54,14 @@ void* lobby::monitorPlayers(lobby* thisLobby){
             return NULL;
         }
     }
+    delete events;
 }
 
 void* lobby::mainLoop(lobby* thisLobby){
     //do stuff 20 times a second
     while(true){
         usleep(50000);
-        for(int i = 0; i < thisLobby->maxPlayers; i++){
+        for(unsigned int i = 0; i < thisLobby->maxPlayers; i++){
             if(thisLobby->players[i] == NULL){
                 continue;
             }
@@ -69,7 +70,7 @@ void* lobby::mainLoop(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const map* lobbyMap) : maxPlayers(maxPlayers), weapons(weapons), ammo(ammo), registryCodec(registryCodec), lobbyMap(lobbyMap){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const map* lobbyMap) : maxPlayers(maxPlayers), registryCodec(registryCodec), weapons(weapons), ammo(ammo), lobbyMap(lobbyMap){
     this->playerCount = 0;
     this->players = new player*[maxPlayers];
     memset(this->players, 0, sizeof(player*) * maxPlayers);
@@ -102,7 +103,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map*
 }
 
 lobby::~lobby(){
-    for(int i = 0; i < this->maxPlayers; i++){
+    for(unsigned int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] != NULL){
             delete this->players[i];
         }
@@ -120,7 +121,7 @@ void lobby::addPlayer(player* p){
         return;
     }
     this->playerCount++;
-    for(int i = 0; i < this->maxPlayers; i++){
+    for(unsigned int i = 0; i < this->maxPlayers; i++){
         if(this->players[i] == NULL){
             this->players[i] = p;
             p->setIndex(i);
@@ -143,7 +144,7 @@ unsigned int lobby::getMaxPlayers() const{
 }
 
 void lobby::sendMessage(char* message){
-    for(int i = 0; i < this->playerCount; i++){
+    for(unsigned int i = 0; i < this->playerCount; i++){
         if(this->players[i] == NULL){
             continue;
         }

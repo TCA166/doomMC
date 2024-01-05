@@ -1,4 +1,5 @@
 #include "mcTypes.h"
+#include "../../cJSON/cJSON.h"
 
 //Authorship note: this code is mine, but from a different project. This is why this is also C and not C++. I don't want to rewrite it. https://github.com/TCA166/mcSavefileParsers/blob/master/regionParser.h
 
@@ -44,6 +45,7 @@ chunk* getChunks(FILE* regionFile);
  @brief Gets the sections from the extracted chunk
  @param chunk chunk that contains the sections
  @param sectionN output pointer to where the returned array size shall be written
+ @param version the version JSON that defines blocks
  @return pointer to a newly allocated section array
 */
-palettedContainer* getSections(chunk* chunk, size_t* sectionN);
+palettedContainer* getSections(chunk* chunk, size_t* sectionN, cJSON* version);

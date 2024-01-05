@@ -108,7 +108,7 @@ void player::dealDamage(int damage, int32_t eid, int damageType){
 
 void player::sendMessage(char* message){
     size_t msgLen = strlen(message);
-    byte packet[4 + msgLen];
+    byte* packet = new byte[msgLen + 3];
     size_t offset = 0;
     packet[offset] = TAG_STRING;
     offset += writeBigEndianUShort(packet, msgLen);
@@ -117,6 +117,7 @@ void player::sendMessage(char* message){
     packet[offset] = 0;
     offset++;
     this->send(packet, offset, SYSTEM_CHAT_MESSAGE);
+    delete packet;
 }
 
 void player::changeLobby(lobby* lobby){
@@ -138,7 +139,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             {
                 const char* dimensionName = (const char*)"minecraft:overworld";
                 const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
-                byte data[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
+                byte* data = new byte[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
                 size_t offset = writeBigEndianInt(data, eid);
                 data[offset] = false; //not hardcore
                 offset++;
@@ -169,6 +170,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 offset++;
                 offset += writeVarInt(data + offset, 0); //portal cooldown
                 this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
+                delete data;
             }
         }
         else{//TODO implement new LOGIN_PLAY format
@@ -209,12 +211,12 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         unsigned int playerNum = this->currentLobby->getPlayerCount();
-        byte data[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
+        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
         size_t offset = 0;
         data[offset] = flag;
         offset++;
         offset += writeVarInt(data + offset, playerNum);
-        for(int i = 0; i < playerNum; i++){
+        for(unsigned int i = 0; i < playerNum; i++){
             const player* p = this->currentLobby->getPlayer(i);
             *(data + offset) = p->getUUID();
             offset += sizeof(UUID_t);
@@ -226,6 +228,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             offset += writeVarInt(data + offset, 0);
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
+        delete data;
     }
     const map* m = this->currentLobby->getMap();
     //send chunk data and update light
@@ -291,6 +294,7 @@ int player::handlePacket(packet* p){
     switch(p->packetId){
         case CHAT_MESSAGE:{
             char* message = readString(p->data, &offset);
+            spdlog::info("Player {}({}) sent message: {}", this->username, this->index, message);
             //TODO handle
             break;
         }
@@ -329,7 +333,8 @@ int player::handlePacket(packet* p){
             this->z += sideways;
             float forward = readFloat(p->data, &offset);
             this->x += forward;
-            byte flags = readByte(p->data, &offset);
+            byte jump = readByte(p->data, &offset);
+            jump = jump & 0x1;
             break;
         }
         case KEEP_ALIVE_2:{
@@ -369,7 +374,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         size_t bytesSz = longCount * sizeof(int64_t);
         data = (byte*)realloc(data, offset + bytesSz + sizeof(int32_t) + 2 + MAX_VAR_INT);
         offset += writeBigEndianInt(data + offset, longCount);
-        for(int i = 0; i < longCount; i++){
+        for(unsigned int i = 0; i < longCount; i++){
             offset += writeBigEndianLong(data + offset, heightmapData[i]);
         }
         free(heightmapData);

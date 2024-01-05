@@ -1,4 +1,6 @@
 
+CFLAGS += -Wunused-parameter -Werror -Wall -Wpedantic -Wunused-result
+
 all: server
 
 server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o

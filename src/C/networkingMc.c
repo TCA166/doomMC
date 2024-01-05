@@ -86,9 +86,9 @@ packet readPacket(int socketFd, int compression){
 
 ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int compression){
     if(compression <= NO_COMPRESSION){ //packet type without compression
-        byte p[MAX_VAR_INT] = {};
+        byte p[MAX_VAR_INT];
         size_t pSize = writeVarInt(p, packetId);
-        byte s[MAX_VAR_INT] = {};
+        byte s[MAX_VAR_INT];
         size_t sSize = writeVarInt(s, size + pSize);
         if(write(socketFd, s, sSize) == -1 || write(socketFd, p, pSize) == -1){
             return -1;
@@ -117,7 +117,7 @@ ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int c
             dataLength = 0;
         }
         byte* packet = calloc(destLen + (MAX_VAR_INT * 2), sizeof(byte));
-        byte l[MAX_VAR_INT] = {};
+        byte l[MAX_VAR_INT];
         size_t sizeL = writeVarInt(l, dataLength);
         size_t sizeP = writeVarInt(packet, destLen + sizeL);
         memcpy(packet + sizeP, l, sizeL);

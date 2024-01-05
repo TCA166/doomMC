@@ -107,10 +107,11 @@ int client::handlePacket(packet* p){
                 cJSON_GetObjectItemCaseSensitive(players, "online")->valueint = this->serv->getPlayerCount();
                 char* json = cJSON_Print(status);
                 size_t sizeJson = strlen(json);
-                byte data[sizeJson + 1 + MAX_VAR_INT];
+                byte* data = new byte[sizeJson + 1 + MAX_VAR_INT];
                 size_t dataSz = writeString(data, json, sizeJson);
                 free(json);
                 return this->send(data, dataSz, STATUS_RESPONSE);
+                delete data;
             }
             else if(p->packetId == PING_REQUEST){
                 int64_t val = readLong(p->data, &offset);
@@ -125,7 +126,7 @@ int client::handlePacket(packet* p){
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
                 this->uuid = readUUID(p->data, &offset);
-                byte data[sizeof(uuid) + len + 1 + (MAX_VAR_INT * 2)];
+                byte* data = new byte[sizeof(this->uuid) + len + 1 + (MAX_VAR_INT * 2)];
                 *(UUID_t*)&data = uuid;
                 size_t sz1 = writeString(data + sizeof(uuid), this->username, len);
                 size_t sz2 = writeVarInt(data + sizeof(uuid) + sz1, 0);
@@ -134,6 +135,7 @@ int client::handlePacket(packet* p){
                     this->state = PLAY_STATE;
                     this->serv->addToLobby(this);
                 }
+                delete data;
             }
             else if(p->packetId == LOGIN_ACKNOWLEDGED){
                 this->state = CONFIG_STATE;
@@ -190,7 +192,7 @@ void client::sendRegistryCodec(){
         throw "Invalid state";
     }
     const byteArray* codec = this->serv->getRegistryCodec();
-    byte data[codec->len];
+    byte* data = new byte[codec->len];
     memcpy(data, codec->bytes, codec->len);
     this->send(data, codec->len, REGISTRY_DATA);
 }

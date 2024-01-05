@@ -13,9 +13,9 @@ extern "C"{
 
 class server{    
     private:
-        const unsigned long lobbyCount;
-        unsigned long connectedCount;
-        const unsigned long maxConnected;
+        const unsigned int lobbyCount;
+        unsigned int connectedCount;
+        const unsigned int maxConnected;
         lobby** lobbies;
         client** connected;
         const cJSON* message;
@@ -26,12 +26,12 @@ class server{
          @brief Gets the player count
          @return the player count
         */
-        unsigned long getPlayerCount();
+        unsigned int getPlayerCount();
         /*!
          @brief Gets the lobby count
          @return the lobby count
         */
-        unsigned long getLobbyCount();
+        unsigned int getLobbyCount();
         /*!
          @brief Gets the number of the connected players
          @return the connected player count
@@ -50,7 +50,7 @@ class server{
          @param status the status message
          @param registryCodec parsed template registry codec
         */
-        server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* status, nbt_node* registryCodec, int epollFd);
+        server(unsigned long maxPlayers, unsigned long lobbyCount, unsigned long maxConnected, cJSON* status, nbt_node* registryCodec, cJSON* version, int epollFd);
         /*!
          @brief Creates a new client instance
          @param socket the socket file descriptor associated with the client

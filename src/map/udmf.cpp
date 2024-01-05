@@ -323,11 +323,11 @@ udmf::udmf(const char* path){
         for(size_t i = 0; i < vertexCount; i++){
             vertex* vertex = vertices + i;
             vertex->x = (vertex->x + xVector) / SCALE;
-            if(vertex->x > width){
+            if((unsigned int)vertex->x > width){
                 width = vertex->x;
             }
             vertex->y = (vertex->y + yVector) / SCALE;
-            if(vertex->y > length){
+            if((unsigned int)vertex->y > length){
                 length = vertex->y;
             }
         }
@@ -349,7 +349,7 @@ udmf::udmf(const char* path){
             mapSector* sector = sectors + i;
             sector->heightceiling = (sector->heightceiling + heightVector) / SCALE;
             sector->heightfloor = (sector->heightfloor + heightVector) / SCALE;
-            if(sector->heightceiling > height){
+            if((unsigned int)sector->heightceiling > height){
                 height = sector->heightceiling;
             }
         }
