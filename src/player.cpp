@@ -132,12 +132,12 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     if(this->currentLobby != NULL){
         return;
     }
+    const char* dimensionName = (const char*)"minecraft:overworld";
     this->currentLobby = assignedLobby;
     this->eid = eid++;
     { //send LOGIN_PLAY
         if(this->protocol <= NO_CONFIG){
             {
-                const char* dimensionName = (const char*)"minecraft:overworld";
                 const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
                 byte* data = new byte[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
                 size_t offset = writeBigEndianInt(data, eid);
@@ -177,7 +177,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
 
         }
     }
-    //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F
+    //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F <- this order here seems outdated to say the least
     {//send set held item
         byte data[1];
         data[0] = this->heldSlot;
@@ -230,10 +230,33 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         this->send(data, offset, PLAYER_INFO_UPDATE);
         delete[] data;
     }
+    {//send initialize world border
+        byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
+        size_t offset = 0;
+        offset += writeBigEndianDouble(data, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 1000);
+        offset += writeVarInt(data + offset, 0); //TODO should be varLong
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        this->send(data, offset, INITIALIZE_WORLD_BORDER);
+    }
     const map* m = this->currentLobby->getMap();
+    position spawn = m->getSpawn();
+    this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
+    //send set default spawn position
+    {
+        byte data[sizeof(position) + sizeof(float)];
+        size_t offset = 0;
+        offset += writeBigEndianLong(data + offset, spawn);
+        //angle
+        offset += writeBigEndianFloat(data + offset, 0);
+        this->send(data, offset, SET_DEFAULT_SPAWN_POSITION);
+    }
     //send chunk data and update light
     {
-        this->send(NULL, 0, BUNDLE_DELIMITER);
         //get width in chunks
         int chunkWidth = m->getWidth() / 16;
         //get length in chunks
@@ -255,31 +278,26 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 }
             }
         }
-        this->send(NULL, 0, BUNDLE_DELIMITER);
     }
-    {//send initialize world border
-        byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
-        size_t offset = 0;
-        offset += writeBigEndianDouble(data, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 1000);
-        offset += writeVarInt(data + offset, 0); //TODO should be varLong
-        offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
-        this->send(data, offset, INITIALIZE_WORLD_BORDER);
-    }
-    position spawn = m->getSpawn();
-    this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
-    //send set default spawn position
-    {
-        byte data[sizeof(position) + sizeof(float)];
-        size_t offset = 0;
-        offset += writeBigEndianLong(data + offset, spawn);
-        //angle
-        offset += writeBigEndianFloat(data + offset, 0);
-        this->send(data, offset, SET_DEFAULT_SPAWN_POSITION);
+    {//Respawn
+        byte* p = new byte[(19 * 2) + (MAX_VAR_INT * 2) + sizeof(int64_t) + 6];
+        size_t offset = writeString(p, dimensionName, 19);
+        offset += writeString(p + offset, dimensionName, 19);
+        offset += writeBigEndianLong(p + offset, 0);
+        p[offset] = 0; //gamemode
+        offset++;
+        p[offset] = -1; //prev gamemode
+        offset++;
+        p[offset] = true; //is debug
+        offset++;
+        p[offset] = false; //is flat
+        offset++;
+        p[offset] = 0; //data kept
+        offset++;
+        p[offset] = false; //has death location
+        offset++;
+        this->send(p, offset, RESPAWN);
+        delete[] p;
     }
     //then send Set Container Content
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
