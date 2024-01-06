@@ -399,7 +399,7 @@ int player::handlePacket(packet* p){
 }
 
 void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){
-    const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 3);
+    const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 2) + ((MAX_VAR_INT + ((MAX_VAR_INT + 2048) * sectionCount)) * 2);
     byte* data = (byte*)malloc((sizeof(int32_t) * 2) + (sizeof(int16_t) * 2) + (17));
     size_t offset = 0;
     offset += writeBigEndianInt(data + offset, chunkX);
@@ -441,12 +441,12 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         memcpy(data + offset, "MOTION_BLOCKING", 15);
         offset += 15;
         const uint8_t bpe = ceil(log2((sectionCount * 16) + 1));
-        byteArray heightmapNBT = writePackedArray(heightmap, 256, bpe);
+        byteArray heightmapNBT = writePackedArray(heightmap, 256, bpe, false);
         delete[] heightmap;
-        //FIXME nbt parsing fails here i think
         data = (byte*)realloc(data, offset + heightmapNBT.len + 2 + MAX_VAR_INT + sizeof(int32_t));
         offset += writeBigEndianInt(data + offset, heightmapNBT.len/sizeof(int64_t));
         memcpy(data + offset, heightmapNBT.bytes, heightmapNBT.len);
+        free(heightmapNBT.bytes);
         offset += heightmapNBT.len;
         data[offset] = TAG_INVALID;
         offset++;
@@ -463,6 +463,10 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     data[offset] = false;
     offset++;
     {//bit sets for sky light
+        if(sectionCount > sizeof(int64_t) * 8){
+            spdlog::error("Too many sections for sky light bit set");
+            return;
+        }
         int64_t zero = 0;
         int64_t one = 0xFFFFFFFFFFFFFFFF; //16 times F
         const bitSet empty = {1, &zero};
@@ -471,9 +475,9 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         offset += writeBitSet(data + offset, &empty);
         offset += writeBitSet(data + offset, &full);
         offset += writeBitSet(data + offset, &full);
+        offset += writeVarInt(data + offset, 0); //sky light array length
+        offset += writeVarInt(data + offset, 0);
     }
-    offset += writeVarInt(data + offset, 0); //sky light array length
-    offset += writeVarInt(data + offset, 0);
     this->send(data, offset, CHUNK_DATA_AND_UPDATE_LIGHT);
     free(data);
 }

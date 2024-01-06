@@ -362,9 +362,10 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
  @param val the array to write
  @param len the length of the array
  @param bpe the amount of bits per element
+ @param writeLength whether to prefix the array with a VarInt containing the length of the array
  @return byteArray containing the encoded array
 */
-byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe);
+byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe, bool writeLength);
 
 /*!
  @brief reads a java like bitset from the buffer at index

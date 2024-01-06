@@ -458,12 +458,14 @@ uint64_t writePackedLong(const int32_t* val, int perLong, int index, uint8_t bpe
     return l;
 }
 
-byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe){
+byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe, bool writeLength){
     byteArray result = nullByteArray;
     const int perLong = (int)(64 / bpe);
     const size_t longCount = (size_t)ceilf((float)len / (float)perLong);
     result.bytes = malloc((longCount * sizeof(int64_t)) + MAX_VAR_INT);
-    result.len += writeVarInt(result.bytes + result.len, longCount);
+    if(writeLength){
+        result.len += writeVarInt(result.bytes + result.len, longCount);
+    }
     for(int i = 0; i < longCount; i++){
         uint64_t l = 0;
         for(int n = 0; n < perLong; n++){
@@ -501,7 +503,7 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
                 for(int i = 0; i < container->paletteSize; i++){
                     result.len += writeVarInt(result.bytes + result.len, container->palette[i]);
                 }
-                byteArray states = writePackedArray(container->states, 4096, bpe);
+                byteArray states = writePackedArray(container->states, 4096, bpe, true);
                 result.bytes = realloc(result.bytes, 1 + states.len + result.len);
                 memcpy(result.bytes + result.len, states.bytes, states.len);
                 free(states.bytes);
@@ -512,7 +514,7 @@ byteArray writePalletedContainer(palettedContainer* container, size_t globalPale
         }
         case 0:{ //pallete is empty, the global pallete does everything
             byte bpe = (byte)ceilf(log2f((float)globalPaletteSize));
-            byteArray states = writePackedArray(container->states, 4096, bpe);
+            byteArray states = writePackedArray(container->states, 4096, bpe, true);
             result.bytes = malloc(1 + states.len);
             result.bytes[result.len] = bpe;
             result.len++;
