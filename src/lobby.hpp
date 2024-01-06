@@ -73,6 +73,14 @@ class lobby{
         */
         const player* getPlayer(int n) const;
         void disconnectPlayer(int n);
+        /*!
+         @brief Updates the player's position on other clients
+         @param eid the entity id of the player
+         @param x x delta
+         @param y y delta
+         @param z z delta
+        */
+        void updatePlayerPosition(int eid, int32_t x, int32_t y, int32_t z);
     private:
         pthread_t monitor;
         pthread_t main;

@@ -135,7 +135,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     }
     const char* dimensionName = (const char*)"minecraft:overworld";
     this->currentLobby = assignedLobby;
-    this->eid = eid++;
+    this->eid = eid;
     { //send LOGIN_PLAY
         if(this->protocol <= NO_CONFIG){
             {
@@ -248,7 +248,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             offset += writeVarInt(data + offset, 0);
             data[offset] = true;
             offset++;
-            offset += writeVarInt(data + offset, 0);
+            offset += writeVarInt(data + offset, p->getPing());
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
         delete[] data;
@@ -336,7 +336,6 @@ int player::handlePacket(packet* p){
     if(this->state != PLAY_STATE){
         return -1;
     }
-    
     int offset = 0;
     switch(p->packetId){
         case CHAT_MESSAGE:{
@@ -346,10 +345,15 @@ int player::handlePacket(packet* p){
             break;
         }
         case SET_PLAYER_POSITION:{
-            this->x = readDouble(p->data, &offset);
-            this->y = readDouble(p->data, &offset);
-            this->z = readDouble(p->data, &offset);
+            double x = readDouble(p->data, &offset);
+            double y = readDouble(p->data, &offset);
+            double z = readDouble(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
+            this->currentLobby->updatePlayerPosition(this->eid, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->y - y));
+            spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, this->x, this->y, this->z);
+            this->x = x;
+            this->y = y;
+            this->z = z;
             break;
         }
         case SET_PLAYER_POSITION_AND_ROTATION:{
@@ -382,6 +386,8 @@ int player::handlePacket(packet* p){
             this->x += forward;
             byte jump = readByte(p->data, &offset);
             jump = jump & 0x1;
+            this->currentLobby->updatePlayerPosition(this->eid, (int32_t)forward, (int32_t)this->y, (int32_t)sideways);
+            spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, this->x, this->y, this->z);
             break;
         }
         case KEEP_ALIVE_2:{
@@ -501,6 +507,16 @@ void player::keepAlive(){
     this->send(data, offset, KEEP_ALIVE);
 }
 
-time_t player::getPing(){
+time_t player::getPing() const{
     return time(NULL) - this->lastKeepAlive;
+}
+
+void player::updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, bool onGround){
+    byte data[MAX_VAR_INT + sizeof(int16_t) * 3 + 1];
+    size_t offset = writeVarInt(data, eid);
+    offset += writeBigEndianShort(data + offset, x);
+    offset += writeBigEndianShort(data + offset, y);
+    offset += writeBigEndianShort(data + offset, z);
+    data[offset++] = onGround;
+    this->send(data, offset, UPDATE_ENTITY_POSITION);
 }

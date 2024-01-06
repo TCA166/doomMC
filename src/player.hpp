@@ -78,7 +78,16 @@ class player : public client{
          @brief Gets the player's ping
          @return the time difference between the last keep alive and now
         */
-        time_t getPing();
+        time_t getPing() const;
+        /*!
+         @brief Updates a position of an entity for this player
+         @param eid the entity id of the entity
+         @param x the delta x
+         @param y the delta y
+         @param z the delta z
+         @param onGround whether or not the entity is on the ground
+        */
+        void updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, bool onGround);
     private:
         double x, y, z;
         bool onGround;
