@@ -163,7 +163,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 offset++;
                 data[offset] = false; //immediate respawn
                 offset++;
-                data[offset] = true; //debug
+                data[offset] = false; //debug
                 offset++;
                 data[offset] = false; //flat
                 offset++;
@@ -300,7 +300,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset++;
         p[offset] = -1; //prev gamemode
         offset++;
-        p[offset] = true; //is debug
+        p[offset] = false; //is debug
         offset++;
         p[offset] = false; //is flat
         offset++;
