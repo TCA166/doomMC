@@ -66,6 +66,7 @@ void player::setHealth(int health){
 }
 
 void player::setCenterChunk(int32_t x, int32_t z){
+    spdlog::debug("Setting center chunk of player {} to {}, {}", this->username, x, z);
     byte data[MAX_VAR_INT * 2];
     size_t offset = writeVarInt(data, x);
     offset += writeVarInt(data + offset, z);
@@ -177,6 +178,20 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
 
         }
     }
+    {//change difficulty
+        byte data[2];
+        data[0] = 3; //difficulty
+        data[1] = true; //is locked
+        this->send(data, 2, CHANGE_DIFFICULTY);
+    }
+    {//player abilities
+        byte data[(sizeof(float) * 2) + 1];
+        data[0] = 0x00; //flags
+        size_t offset = 1;
+        offset += writeBigEndianFloat(data + offset, 0.05f); //flying speed
+        offset += writeBigEndianFloat(data + offset, 0.1f); //walking speed
+        this->send(data, offset, PLAYER_ABILITIES);
+    }
     //https://wiki.vg/Protocol_FAQ#What.27s_the_normal_login_sequence_for_a_client.3F <- this order here seems outdated to say the least
     {//send set held item
         byte data[1];
@@ -207,6 +222,14 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeVarInt(data + offset, 0);
         this->send(data, offset, COMMANDS);
     }
+    {//server data
+        byte data[21 + MAX_VAR_INT];
+        const char* MOTD = "{\"text\":\"\"}";
+        size_t offset = writeString(data, MOTD, 11);
+        data[offset++] = false;
+        data[offset++] = false;
+        this->send(data, offset, SERVER_DATA);
+    }
     {//update player list
         
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
@@ -230,24 +253,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         this->send(data, offset, PLAYER_INFO_UPDATE);
         delete[] data;
     }
-    {//send initialize world border
-        byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
-        size_t offset = 0;
-        offset += writeBigEndianDouble(data, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 1000);
-        offset += writeVarInt(data + offset, 0); //TODO should be varLong
-        offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
-        this->send(data, offset, INITIALIZE_WORLD_BORDER);
-    }
     const map* m = this->currentLobby->getMap();
     position spawn = m->getSpawn();
-    this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
-    //send set default spawn position
-    {
+    {//send set default spawn position
+        spdlog::debug("Sending set default spawn position to {},{},{} to player {}({})", positionX(spawn), positionY(spawn), positionZ(spawn), this->username, this->index);
         byte data[sizeof(position) + sizeof(float)];
         size_t offset = 0;
         offset += writeBigEndianLong(data + offset, spawn);
@@ -255,8 +264,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         offset += writeBigEndianFloat(data + offset, 0);
         this->send(data, offset, SET_DEFAULT_SPAWN_POSITION);
     }
+    this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
     //send chunk data and update light
     {
+        this->send(NULL, 0, BUNDLE_DELIMITER);
         //get width in chunks
         int chunkWidth = m->getWidth() / 16;
         //get length in chunks
@@ -278,6 +289,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 }
             }
         }
+        this->send(NULL, 0, BUNDLE_DELIMITER);
     }
     {//Respawn
         byte* p = new byte[(19 * 2) + (MAX_VAR_INT * 2) + sizeof(int64_t) + 6];
@@ -299,10 +311,22 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         this->send(p, offset, RESPAWN);
         delete[] p;
     }
+    {//send initialize world border
+        byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
+        size_t offset = 0;
+        offset += writeBigEndianDouble(data, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 0);
+        offset += writeBigEndianDouble(data + offset, 1000);
+        offset += writeVarInt(data + offset, 0); //TODO should be varLong
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        this->send(data, offset, INITIALIZE_WORLD_BORDER);
+    }
     //then send Set Container Content
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
-    this->setLocation((double)positionX(spawn), (double)positionY(spawn), (double)positionZ(spawn));
     spdlog::info("Player {} joined lobby", this->username);
 }
 
