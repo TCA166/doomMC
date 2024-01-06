@@ -57,7 +57,7 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
         if(ent->d_type == DT_REG){
             spdlog::debug("Found map {}", ent->d_name);
             map* newMap;
-            //check if the extension is .mcr
+            //check if the extension is .mca
             if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mca") == 0){
                 newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str(), version);
             }

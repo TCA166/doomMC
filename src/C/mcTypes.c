@@ -436,7 +436,14 @@ palettedContainer readPalettedContainer(const byte* buff, int* index, const int 
     return result;
 }
 
-static size_t writeIntToPackedArray(uint64_t* buff, int value, size_t offset, uint8_t bitsPerEntry) {
+/*!
+ @brief Writes an int to a Long at the given offset
+ @param buff the long to write to
+ @param value the value to write
+ @param offset the offset at which to write the value
+ @param bitsPerEntry the amount of bits the value can take
+*/
+static size_t writeIntToPackedArray(uint64_t* buff, int value, size_t offset, uint8_t bitsPerEntry){
     uint64_t mask = ((1ULL << bitsPerEntry) - 1) << offset;
     uint64_t maskedValue = (uint64_t)(value & ((1 << bitsPerEntry) - 1));
     *buff = (*buff & ~mask) | (maskedValue << offset);
@@ -460,6 +467,9 @@ byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe){
     for(int i = 0; i < longCount; i++){
         uint64_t l = 0;
         for(int n = 0; n < perLong; n++){
+            if(i * perLong + n >= len){
+                break;
+            }
             writeIntToPackedArray(&l, val[i * perLong + n], n * bpe, bpe);
         }
         result.len += writeBigEndianLong(result.bytes + result.len, l);

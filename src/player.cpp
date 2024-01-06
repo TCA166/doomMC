@@ -405,6 +405,33 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     offset += writeBigEndianInt(data + offset, chunkX);
     offset += writeBigEndianInt(data + offset, chunkZ);
     { //heightmap NBT
+        //construct the heightmap
+        int32_t* heightmap = new int32_t[256];
+        for(int x = 0; x < 16; x++){
+            for(int z = 0; z < 16; z++){
+                bool found = false;
+                //foreach section
+                for(int s = sectionCount - 1; s >= 0; s--){
+                    palettedContainer* section = &sections[s];
+                    if(section->states == NULL){
+                        continue;
+                    }
+                    //foreach y in section
+                    for(int y = 15; y >= 0; y--){
+                        int index = statesFormula(x, y, z);
+                        if(section->states[index] != 0){
+                            found = true;
+                            heightmap[(x * 16) + z] = y;
+                            break;
+                        }
+                    }
+                    if(found){
+                        break;
+                    }
+                }
+            }
+        }
+        //then write it into a NBT
         data[offset] = TAG_COMPOUND;
         offset++;
         offset += writeBigEndianShort(data + offset, 0);
@@ -414,17 +441,13 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         memcpy(data + offset, "MOTION_BLOCKING", 15);
         offset += 15;
         const uint8_t bpe = ceil(log2((sectionCount * 16) + 1));
-        const int perLong = (int)(64 / bpe);
-        const size_t longCount = (size_t)ceilf((float)256 / (float)perLong);
-        //MAYBE actually implment heightmap, for now it just sends a whole bunch of zeroes
-        uint64_t* heightmapData = (uint64_t*)calloc(longCount, sizeof(uint64_t));
-        size_t bytesSz = longCount * sizeof(int64_t);
-        data = (byte*)realloc(data, offset + bytesSz + sizeof(int32_t) + 2 + MAX_VAR_INT);
-        offset += writeBigEndianInt(data + offset, longCount);
-        for(unsigned int i = 0; i < longCount; i++){
-            offset += writeBigEndianLong(data + offset, heightmapData[i]);
-        }
-        free(heightmapData);
+        byteArray heightmapNBT = writePackedArray(heightmap, 256, bpe);
+        delete[] heightmap;
+        //FIXME nbt parsing fails here i think
+        data = (byte*)realloc(data, offset + heightmapNBT.len + 2 + MAX_VAR_INT + sizeof(int32_t));
+        offset += writeBigEndianInt(data + offset, heightmapNBT.len/sizeof(int64_t));
+        memcpy(data + offset, heightmapNBT.bytes, heightmapNBT.len);
+        offset += heightmapNBT.len;
         data[offset] = TAG_INVALID;
         offset++;
     }
@@ -437,7 +460,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     //block entities
     offset += writeVarInt(data + offset, 0);
     //Trust edges
-    data[offset] = true;
+    data[offset] = false;
     offset++;
     {//bit sets for sky light
         int64_t zero = 0;
