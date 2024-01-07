@@ -1,5 +1,6 @@
 #include "mcr.hpp"
 #include <spdlog/spdlog.h>
+#include <stdexcept>
 
 extern "C" {
     #include <unistd.h>
@@ -8,10 +9,13 @@ extern "C" {
     #include "../../cNBT/nbt.h"
 }
 
+#define regionSize 32
+#define sectionOffset 4
+
 minecraftRegion::minecraftRegion(const char* path, cJSON* version){
-    this->height = 256;
-    this->width = 512;
-    this->length = 512;
+    this->width = regionSize * 16;
+    this->length = regionSize * 16;
+    this->height = 20 * 16;
     this->blocks = (int32_t***)malloc(sizeof(int32_t**) * this->width);
     for(unsigned int x = 0; x < this->width; x++){
         this->blocks[x] = (int32_t**)malloc(sizeof(int32_t*) * this->height);
@@ -26,7 +30,7 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
     this->paletteSize = 0;
     FILE* f = fopen(path, "rb");
     if(f == NULL){
-        throw "Could not open file";
+        throw std::invalid_argument("Could not open region file");
     }
     chunk* rawChunks = getChunks(f);
     fclose(f);
@@ -38,47 +42,49 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
                 palettedContainer* sections = getSections(rawChunks + i, &sectionCount, version);
                 free(rawChunks[i].data);
                 if(sections == NULL){
-                    throw "Could not get sections";
+                    throw std::invalid_argument("Could not parse chunk");
                 }
-                for(size_t section = 0; section < sectionCount; section++){
+                //this trick with the sectionOffset should remove highest sections, but move the negative sections up
+                for(size_t sectionIndex = sectionOffset; sectionIndex < sectionCount; sectionIndex++){
+                    palettedContainer* section = sections + sectionIndex - sectionOffset;
                     //merge the palette
-                    this->palette = (int32_t*)realloc(this->palette, sizeof(int32_t) * (this->paletteSize + sections[section].paletteSize));
-                    for(size_t j = 0; j < sections[section].paletteSize; j++){
+                    this->palette = (int32_t*)realloc(this->palette, sizeof(int32_t) * (this->paletteSize + section->paletteSize));
+                    for(size_t j = 0; j < section->paletteSize; j++){
                         bool skip = false;
                         for(size_t n = 0; n < this->paletteSize; n++){
-                            if(this->palette[n] == sections[section].palette[j]){
-                                sections[section].palette[j] = n;
+                            if(this->palette[n] == section->palette[j]){
+                                section->palette[j] = n;
                                 skip = true;
                                 break;
                             }
                         }
                         if(!skip){
-                            this->palette[this->paletteSize] = sections[section].palette[j];
-                            sections[section].palette[j] = this->paletteSize;
+                            this->palette[this->paletteSize] = section->palette[j];
+                            section->palette[j] = this->paletteSize;
                             this->paletteSize++;
                         }
                     }
-                    if(sections[section].states != NULL){
+                    if(section->states != NULL){
                         for(int y = 0; y < 16; y++){
                             for(int x = 0; x < 16; x++){
                                 for(int z = 0; z < 16; z++){
-                                    int32_t block = sections[section].states[statesFormula(x, y, z)];
+                                    int32_t block = section->states[statesFormula(x, y, z)];
                                     if(block != 0){
-                                        this->blocks[x + (chunkX * 16)][y + (section * 16)][z + (chunkZ * 16)] = sections[section].palette[block];
+                                        this->blocks[x + (chunkX * 16)][y + (sectionIndex * 16)][z + (chunkZ * 16)] = section->palette[block];
                                     }
                                 }
                             }
                         }
                     }
-                    free(sections[section].states);
-                    free(sections[section].palette);
+                    free(section->states);
+                    free(section->palette);
                 }
                 free(sections);
             }
         }
     }
     free(rawChunks);
-    spdlog::info("Loaded region file");
+    spdlog::info("Loaded region file {}", path);
 }
 
 minecraftRegion::~minecraftRegion(){

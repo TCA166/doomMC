@@ -72,10 +72,9 @@ packet client::getPacket(){
 }
 
 int client::send(byte* data, int length, byte packetId){
-    spdlog::debug("Sending packet {} to client {}", packetId, this->uuid);
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
     if(res == -1){
-        spdlog::debug("Sending packet {} to {} failed", packetId, this->uuid);
+        spdlog::warn("Sending packet {} to {} failed", packetId, this->uuid);
         if(errno == EPIPE){
             this->disconnect();
         }
@@ -235,7 +234,7 @@ const char* client::getUsername() const{
     return this->username;
 }
 
-int client::getIndex(){
+int client::getIndex() const{
     return this->index;
 }
 

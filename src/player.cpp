@@ -74,24 +74,24 @@ void player::setCenterChunk(int32_t x, int32_t z){
 }
 
 void player::setLocation(double x, double y, double z){
-    spdlog::debug("Setting location of player {} to {}, {}, {}", this->username, x, y, z);
-    this->setCenterChunk((int32_t)floor(x / 16), (int32_t)floor(z / 16));
-    {
-        this->x = x;
-        this->y = y;
-        this->z = z;
-        byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
-        size_t offset = 0;
-        offset += writeBigEndianDouble(data + offset, this->x);
-        offset += writeBigEndianDouble(data + offset, this->y);
-        offset += writeBigEndianDouble(data + offset, this->z);
-        offset += writeBigEndianFloat(data + offset, this->yaw);
-        offset += writeBigEndianFloat(data + offset, this->pitch);
-        data[offset] = 0;
-        offset++;
-        offset += writeVarInt(data + offset, this->teleportId++);
-        this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
-    }
+    spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, x, y, z);
+    this->x = x;
+    this->y = y;
+    this->z = z;
+}
+
+void player::synchronizeLocation(){
+    byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
+    size_t offset = 0;
+    offset += writeBigEndianDouble(data + offset, this->x);
+    offset += writeBigEndianDouble(data + offset, this->y);
+    offset += writeBigEndianDouble(data + offset, this->z);
+    offset += writeBigEndianFloat(data + offset, this->yaw);
+    offset += writeBigEndianFloat(data + offset, this->pitch);
+    data[offset] = 0;
+    offset++;
+    offset += writeVarInt(data + offset, this->teleportId++);
+    this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
 }
 
 void player::dealDamage(int damage, int32_t eid, int damageType){
@@ -327,11 +327,11 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     //then send Set Container Content
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
+    this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
     spdlog::info("Player {} joined lobby", this->username);
 }
 
 int player::handlePacket(packet* p){
-    spdlog::debug("Handling packet {} from client {}", p->packetId, this->uuid);
     //TODO sync and expand
     if(this->state != PLAY_STATE){
         return -1;
@@ -345,29 +345,32 @@ int player::handlePacket(packet* p){
             break;
         }
         case SET_PLAYER_POSITION:{
-            double x = readDouble(p->data, &offset);
-            double y = readDouble(p->data, &offset);
-            double z = readDouble(p->data, &offset);
+            double x = readBigEndianDouble(p->data, &offset);
+            double y = readBigEndianDouble(p->data, &offset);
+            double z = readBigEndianDouble(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
-            this->currentLobby->updatePlayerPosition(this->eid, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->y - y));
-            spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, this->x, this->y, this->z);
-            this->x = x;
-            this->y = y;
-            this->z = z;
+            if(this->x != x || this->y != y || this->z != z){
+                this->currentLobby->updatePlayerPosition(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z));
+                this->setLocation(x, y, z);
+            }
             break;
         }
         case SET_PLAYER_POSITION_AND_ROTATION:{
-            this->x = readDouble(p->data, &offset);
-            this->y = readDouble(p->data, &offset);
-            this->z = readDouble(p->data, &offset);
-            this->yaw = readFloat(p->data, &offset);
-            this->pitch = readFloat(p->data, &offset);
+            double x = readBigEndianDouble(p->data, &offset);
+            double y = readBigEndianDouble(p->data, &offset);
+            double z = readBigEndianDouble(p->data, &offset);
+            this->yaw = readBigEndianFloat(p->data, &offset);
+            this->pitch = readBigEndianFloat(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
+            if(this->x != x || this->y != y || this->z != z){
+                this->currentLobby->updatePlayerPosition(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z));
+                this->setLocation(x, y, z);
+            }
             break;
         }
         case SET_PLAYER_ROTATION:{
-            this->yaw = readFloat(p->data, &offset);
-            this->pitch = readFloat(p->data, &offset);
+            this->yaw = readBigEndianFloat(p->data, &offset);
+            this->pitch = readBigEndianFloat(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
             break;
         }
@@ -380,14 +383,13 @@ int player::handlePacket(packet* p){
             break;
         }
         case PLAYER_INPUT:{
-            float sideways = readFloat(p->data, &offset);
-            this->z += sideways;
-            float forward = readFloat(p->data, &offset);
-            this->x += forward;
+            float sideways = readBigEndianFloat(p->data, &offset);
+            float forward = readBigEndianFloat(p->data, &offset);
             byte jump = readByte(p->data, &offset);
             jump = jump & 0x1;
-            this->currentLobby->updatePlayerPosition(this->eid, (int32_t)forward, (int32_t)this->y, (int32_t)sideways);
-            spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, this->x, this->y, this->z);
+            this->currentLobby->updatePlayerPosition(this, (int32_t)forward, 0, (int32_t)sideways);
+            this->z += sideways;
+            this->x += forward;
             break;
         }
         case KEEP_ALIVE_2:{
@@ -519,4 +521,19 @@ void player::updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, 
     offset += writeBigEndianShort(data + offset, z);
     data[offset++] = onGround;
     this->send(data, offset, UPDATE_ENTITY_POSITION);
+}
+
+int32_t player::getEid() const{
+    return this->eid;
+}
+
+int player::getBlock(int x, int y, int z) const{
+    int block = 0;
+    try{
+        block = this->currentLobby->getMap()->getBlock((uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z));
+    }
+    catch(const std::invalid_argument& e){
+        spdlog::error("Could not get block at {},{},{}: {}", (uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z), e.what());
+    }
+    return block;
 }

@@ -3,7 +3,7 @@
 #include <stdbool.h>
 #include <errno.h>
 #include <string.h>
-
+#include <endian.h>
 #include <math.h>
 
 #include "mcTypes.h"
@@ -15,29 +15,32 @@
         index = &locIndex; \
     }
 
-static inline int16_t swapShort(int16_t s){
-    return (s << 8) | ((s >> 8) & 0xFF);
+//the endian.h functions don't seem to work well on floating point values so these are here optimised as much as possible
+
+inline static double swapDouble(double val){
+    double retVal = 0;
+    byte* restrict src = (byte*)&val;
+    byte* restrict dest = (byte*)&retVal;
+    dest[0] = src[7];
+    dest[1] = src[6];
+    dest[2] = src[5];
+    dest[3] = src[4];
+    dest[4] = src[3];
+    dest[5] = src[2];
+    dest[6] = src[1];
+    dest[7] = src[0];
+    return retVal;
 }
 
-static inline uint16_t swapUShort(uint16_t s){
-    return (s << 8) | (s >> 8 );
-}
-
-static inline int32_t swapInt(int32_t i){
-    i = ((i << 8) & 0xFF00FF00) | ((i >> 8) & 0xFF00FF ); 
-    return (i << 16) | ((i >> 16) & 0xFFFF);
-}
-
-static inline int64_t swapLong(int64_t l){
-    l = ((l << 8) & 0xFF00FF00FF00FF00ULL ) | ((l >> 8) & 0x00FF00FF00FF00FFULL );
-    l = ((l << 16) & 0xFFFF0000FFFF0000ULL ) | ((l >> 16) & 0x0000FFFF0000FFFFULL );
-    return (l << 32) | ((l >> 32) & 0xFFFFFFFFULL);
-}
-
-static inline uint64_t swapULong(uint64_t l){
-    l = ((l << 8) & 0xFF00FF00FF00FF00ULL ) | ((l >> 8) & 0x00FF00FF00FF00FFULL );
-    l = ((l << 16) & 0xFFFF0000FFFF0000ULL ) | ((l >> 16) & 0x0000FFFF0000FFFFULL );
-    return (l << 32) | (l >> 32);
+inline static float swapFloat(float val){
+    float retVal = 0;
+    byte* restrict src = (byte*)&val;
+    byte* restrict dest = (byte*)&retVal;
+    dest[0] = src[3];
+    dest[1] = src[2];
+    dest[2] = src[1];
+    dest[3] = src[0];
+    return retVal;
 }
 
 //Gets the size of the nbt tag in buffer, assumes the nbt tag is of the given type
@@ -166,23 +169,23 @@ int16_t readShort(const byte* buff, int* index){
 
 int16_t readBigEndianShort(const byte* buff, int* index){
     int16_t s = readShort(buff, index);
-    return swapShort(s);
+    return be16toh(s);
 }
 
 uint16_t readBigEndianUShort(const byte* buff, int* index){
     uint16_t s = readShort(buff, index);
-    return swapUShort(s);
+    return be16toh(s);
 }
 
 size_t writeBigEndianInt(byte* buff, int32_t num){
-    int32_t bigEndian = swapInt(num);
+    int32_t bigEndian = htobe32(num);
     *(int32_t*)buff = bigEndian;
     return sizeof(int32_t);
 }
 
 int32_t readBigEndianInt(const byte* buff, int* index){
     int32_t i = readInt(buff, index);
-    return swapInt(i);
+    return be32toh(i);
 }
 
 UUID_t readUUID(const byte* buff, int* index){
@@ -334,22 +337,22 @@ int64_t readVarLong(const byte* buff, int* index){
 }
 
 size_t writeBigEndianLong(byte* buff, int64_t num){
-    int64_t bigEndian = swapLong(num);
+    int64_t bigEndian = htobe64(num);
     *(int64_t*)buff = bigEndian;
     return sizeof(int64_t);
 }
 
 int64_t readBigEndianLong(const byte* buff, int* index){
     int64_t littleEndian = readLong(buff, index);
-    return swapLong(littleEndian);
+    return be64toh(littleEndian);
 }
 
 float readBigEndianFloat(const byte* buff, int* index){
-    return (float)readBigEndianInt(buff, index);
+    return swapFloat(readFloat(buff, index));
 }
 
 double readBigEndianDouble(const byte* buff, int* index){
-    return (double)readBigEndianLong(buff, index);
+    return swapDouble(readDouble(buff, index));
 }
 
 size_t writeShort(byte* buff, int16_t num){
@@ -358,18 +361,18 @@ size_t writeShort(byte* buff, int16_t num){
 }
 
 size_t writeBigEndianShort(byte* buff, int16_t num){
-    int16_t bigEndian = swapShort(num);
+    int16_t bigEndian = be16toh(num);
     return writeShort(buff, bigEndian);
 }
 
 size_t writeBigEndianUShort(byte* buff, uint16_t num){
-    uint16_t bigEndian = swapUShort(num);
+    uint16_t bigEndian = be16toh(num);
     return writeShort(buff, bigEndian);
 }
 
 uint64_t readBigEndianULong(const byte* buff, int* index){
     uint64_t littleEndian = readLong(buff, index);
-    return swapULong(littleEndian);
+    return be64toh(littleEndian);
 }
 
 palettedContainer readPalettedContainer(const byte* buff, int* index, const int bitsLowest, const int bitsThreshold, const size_t globalPaletteSize){

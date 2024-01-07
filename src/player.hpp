@@ -41,7 +41,7 @@ class player : public client{
         */
         void setLocation(double x, double y, double z);
         /*!
-         @brief Sends a syncrhonize location packet to the player
+         @brief Sends a synchronize location packet to the player
         */
         void synchronizeLocation();
         /*!
@@ -88,6 +88,15 @@ class player : public client{
          @param onGround whether or not the entity is on the ground
         */
         void updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, bool onGround);
+        int32_t getEid() const;
+        /*!
+         @brief Get's the block at the specified offset from the player position
+         @param x the x offset
+         @param y the y offset
+         @param z the z offset
+         @return the block at the specified offset
+        */
+        int getBlock(int x, int y, int z) const;
     private:
         double x, y, z;
         bool onGround;

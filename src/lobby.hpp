@@ -80,7 +80,7 @@ class lobby{
          @param y y delta
          @param z z delta
         */
-        void updatePlayerPosition(int eid, int32_t x, int32_t y, int32_t z);
+        void updatePlayerPosition(const player* p, int x, int y, int z);
     private:
         pthread_t monitor;
         pthread_t main;

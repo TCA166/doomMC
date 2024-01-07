@@ -115,7 +115,7 @@ class client{
          @brief Gets the index of the client
          @return the index of the client
         */
-        int getIndex();
+        int getIndex() const;
         /*!
          @brief Sets the index of the client
          @param index the index to set

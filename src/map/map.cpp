@@ -1,5 +1,6 @@
 #include "map.hpp"
 #include <stdlib.h>
+#include <stdexcept>
 
 extern "C" {
     #include <time.h>
@@ -7,7 +8,7 @@ extern "C" {
 
 unsigned int map::getBlock(unsigned int x, unsigned int y, unsigned int z) const{
     if(x >= this->width || y >= this->height || z >= this->length){
-        throw "Out of bounds";
+        throw std::invalid_argument("Block coordinates out of bounds");
     }
     return this->blocks[x][y][z];
 }
@@ -34,7 +35,7 @@ size_t map::getPaletteSize() const{
 
 palettedContainer map::getSection(unsigned int chunkX, unsigned int chunkZ, unsigned int number) const{
     if(chunkX >= (this->width / 16) + 1 || chunkZ >= (this->length / 16) + 1){
-        throw "Out of bounds";
+        throw std::invalid_argument("Chunk coordinates out of bounds");
     }
     if(number >= this->height / 16){
         int32_t* single = (int32_t*)calloc(1, sizeof(int32_t));

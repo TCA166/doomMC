@@ -177,16 +177,16 @@ const player* lobby::getPlayer(int n) const{
     return this->players[n];
 }
 
-void lobby::updatePlayerPosition(int eid, int32_t x, int32_t y, int32_t z){
+void lobby::updatePlayerPosition(const player* p, int x, int y, int z){
     for(unsigned int i = 0; i < this->playerCount; i++){
-        if(this->players[i] == NULL){
+        if(this->players[i] == NULL || this->players[i] == p){
             continue;
         }
         if(y <= 0){
             y = 1;
         }
-        //TODO rework how maps are handled, and what if any coordinate is negative
-        bool onGround = this->lobbyMap->getBlock((uint32_t)x, (uint32_t)y - 1, (uint32_t)z) != 0;
-        this->players[i]->updateEntityPosition(eid, (int16_t)x, (int16_t)y, (int16_t)z, onGround);
+        spdlog::debug("Moving player {}({}) position by ({}, {}, {})", p->getUUID(), p->getIndex(), x, y, z);
+        bool onGround = p->getBlock(x, y - 1, z) != 0;
+        this->players[i]->updateEntityPosition(p->getEid(), (int16_t)x, (int16_t)y, (int16_t)z, onGround);
     }
 }
