@@ -41,10 +41,6 @@ class player : public client{
         */
         void setLocation(double x, double y, double z);
         /*!
-         @brief Sends a synchronize location packet to the player
-        */
-        void synchronizeLocation();
-        /*!
          @brief Deals some damage to the player and sends the appropriate packet
          @param damage the amount to deal
          @param eid the entity id of the damager
@@ -88,6 +84,15 @@ class player : public client{
          @param onGround whether or not the entity is on the ground
         */
         void updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, bool onGround);
+        /*!
+         @brief Updates the rotation of an entity for this player
+         @param eid the entity id of the entity
+         @param yaw the yaw of the entity
+         @param pitch the pitch of the entity
+         @param onGround whether or not the entity is on the ground
+        */
+        void updateEntityRotation(int32_t eid, float yaw, float pitch, bool onGround);
+        void updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int16_t z, float yaw, float pitch, bool onGround);
         int32_t getEid() const;
         /*!
          @brief Get's the block at the specified offset from the player position
@@ -97,6 +102,7 @@ class player : public client{
          @return the block at the specified offset
         */
         int getBlock(int x, int y, int z) const;
+        bool isOnGround() const;
     private:
         double x, y, z;
         bool onGround;

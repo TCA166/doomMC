@@ -81,6 +81,8 @@ class lobby{
          @param z z delta
         */
         void updatePlayerPosition(const player* p, int x, int y, int z);
+        void updatePlayerRotation(const player* p, float yaw, float pitch);
+        void updatePlayerPositionRotation(const player* p, int x, int y, int z, float yaw, float pitch);
     private:
         pthread_t monitor;
         pthread_t main;

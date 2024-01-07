@@ -578,11 +578,19 @@ size_t writeSlot(byte* buff, slot* s){
 }
 
 size_t writeBigEndianFloat(byte* buff, float f){
-    return writeBigEndianInt(buff, f);
+    *(float*)buff = swapFloat(f);
+    return sizeof(float);
 }
 
 size_t writeBigEndianDouble(byte* buff, double d){
-    return writeBigEndianLong(buff, d);
+    *(double*)buff = swapDouble(d);
+    return sizeof(double);
+}
+
+angle_t toAngle(float f){
+    int angle = abs((int)f); //f can be negative, it changes nothing
+    angle %= 360; //f can be greater than 360, we need to fix that
+    return (angle_t)(f * 256 / 360);
 }
 
 byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, size_t sectionCount, size_t globalPaletteSize){

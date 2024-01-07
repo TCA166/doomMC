@@ -376,6 +376,13 @@ byteArray writePackedArray(int32_t* val, size_t len, uint8_t bpe, bool writeLeng
 bitSet readBitSet(const byte* buff, int* index);
 
 /*!
+ @brief Converts a float to an angle_t
+ @param f the float to convert
+ @return the converted angle_t
+*/
+angle_t toAngle(float f);
+
+/*!
  @brief Writes a bitSet to the buffer
  @param buff the buffer to write to
  @param set the bitSet to write

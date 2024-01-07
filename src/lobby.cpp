@@ -186,7 +186,29 @@ void lobby::updatePlayerPosition(const player* p, int x, int y, int z){
             y = 1;
         }
         spdlog::debug("Moving player {}({}) position by ({}, {}, {})", p->getUUID(), p->getIndex(), x, y, z);
-        bool onGround = p->getBlock(x, y - 1, z) != 0;
-        this->players[i]->updateEntityPosition(p->getEid(), (int16_t)x, (int16_t)y, (int16_t)z, onGround);
+        this->players[i]->updateEntityPosition(p->getEid(), (int16_t)x, (int16_t)y, (int16_t)z, p->isOnGround());
+    }
+}
+
+void lobby::updatePlayerRotation(const player* p, float yaw, float pitch){
+    for(unsigned int i = 0; i < this->playerCount; i++){
+        if(this->players[i] == NULL || this->players[i] == p){
+            continue;
+        }
+        spdlog::debug("Moving player {}({}) rotation to ({}, {})", p->getUUID(), p->getIndex(), yaw, pitch);
+        this->players[i]->updateEntityRotation(p->getEid(), yaw, pitch, p->isOnGround());
+    }
+}
+
+void lobby::updatePlayerPositionRotation(const player* p, int x, int y, int z, float yaw, float pitch){
+    for(unsigned int i = 0; i < this->playerCount; i++){
+        if(this->players[i] == NULL || this->players[i] == p){
+            continue;
+        }
+        if(y <= 0){
+            y = 1;
+        }
+        spdlog::debug("Moving player {}({}) position by ({}, {}, {}) and rotation to ({}, {})", p->getUUID(), p->getIndex(), x, y, z, yaw, pitch);
+        this->players[i]->updateEntityPositionRotation(p->getEid(), (int16_t)x, (int16_t)y, (int16_t)z, yaw, pitch, p->isOnGround());
     }
 }

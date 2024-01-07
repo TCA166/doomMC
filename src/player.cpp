@@ -74,13 +74,11 @@ void player::setCenterChunk(int32_t x, int32_t z){
 }
 
 void player::setLocation(double x, double y, double z){
-    spdlog::debug("Player {}({}) moved to {},{},{}", this->username, this->index, x, y, z);
+    spdlog::debug("Player {}({}) teleported to {},{},{}", this->username, this->index, x, y, z);
     this->x = x;
     this->y = y;
     this->z = z;
-}
-
-void player::synchronizeLocation(){
+    this->setCenterChunk((int32_t)floor(x / 16), (int32_t)floor(z / 16));
     byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
     size_t offset = 0;
     offset += writeBigEndianDouble(data + offset, this->x);
@@ -351,7 +349,9 @@ int player::handlePacket(packet* p){
             this->onGround = readBool(p->data, &offset);
             if(this->x != x || this->y != y || this->z != z){
                 this->currentLobby->updatePlayerPosition(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z));
-                this->setLocation(x, y, z);
+                this->x = x;
+                this->y = y;
+                this->z = z;
             }
             break;
         }
@@ -363,8 +363,10 @@ int player::handlePacket(packet* p){
             this->pitch = readBigEndianFloat(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
             if(this->x != x || this->y != y || this->z != z){
-                this->currentLobby->updatePlayerPosition(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z));
-                this->setLocation(x, y, z);
+                this->currentLobby->updatePlayerPositionRotation(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z), this->yaw, this->pitch);
+                this->x = x;
+                this->y = y;
+                this->z = z;
             }
             break;
         }
@@ -372,6 +374,7 @@ int player::handlePacket(packet* p){
             this->yaw = readBigEndianFloat(p->data, &offset);
             this->pitch = readBigEndianFloat(p->data, &offset);
             this->onGround = readBool(p->data, &offset);
+            this->currentLobby->updatePlayerRotation(this, this->yaw, this->pitch);
             break;
         }
         case SET_PLAYER_ON_GROUND:{
@@ -500,6 +503,7 @@ void player::disconnect(){
 }
 
 player::~player(){
+    //FIXME invalid pointer exception after this was called when two players were on the server
     spdlog::debug("Deleting player {}({})", this->uuid, this->index);
 }
 
@@ -523,6 +527,27 @@ void player::updateEntityPosition(int32_t eid, int16_t x, int16_t y, int16_t z, 
     this->send(data, offset, UPDATE_ENTITY_POSITION);
 }
 
+void player::updateEntityRotation(int32_t eid, float yaw, float pitch, bool onGround){
+    byte data[MAX_VAR_INT + sizeof(float) * 2 + 1];
+    size_t offset = writeVarInt(data, eid);
+    data[offset++] = toAngle(yaw);
+    data[offset++] = toAngle(pitch);
+    data[offset++] = onGround;
+    this->send(data, offset, UPDATE_ENTITY_ROTATION);
+}
+
+void player::updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int16_t z, float yaw, float pitch, bool onGround){
+    byte data[MAX_VAR_INT + sizeof(int16_t) * 3 + sizeof(float) * 2 + 1];
+    size_t offset = writeVarInt(data, eid);
+    offset += writeBigEndianShort(data + offset, x);
+    offset += writeBigEndianShort(data + offset, y);
+    offset += writeBigEndianShort(data + offset, z);
+    data[offset++] = toAngle(yaw);
+    data[offset++] = toAngle(pitch);
+    data[offset++] = onGround;
+    this->send(data, offset, UPDATE_ENTITY_POSITION_AND_ROTATION);
+}
+
 int32_t player::getEid() const{
     return this->eid;
 }
@@ -536,4 +561,8 @@ int player::getBlock(int x, int y, int z) const{
         spdlog::error("Could not get block at {},{},{}: {}", (uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z), e.what());
     }
     return block;
+}
+
+bool player::isOnGround() const{
+    return this->onGround;
 }
