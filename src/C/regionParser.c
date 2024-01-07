@@ -173,21 +173,25 @@ palettedContainer* getSections(chunk* chunk, size_t* sectionN, cJSON* version){
                             break;
                         }
                         switch(property->type){
-                            case cJSON_String:
+                            case cJSON_String:{
                                 propertiesMatch &= strcmp(nbtProp->payload.tag_string, property->valuestring) == 0;
                                 break;
+                            }   
                             case cJSON_False:
-                            case cJSON_True:
+                            case cJSON_True:{
                                 bool val = nbtProp->payload.tag_string[0] == 't';
                                 propertiesMatch &= val == property->valueint;
                                 break;
-                            case cJSON_Number:
+                            }
+                            case cJSON_Number:{
                                 propertiesMatch &= atoi(nbtProp->payload.tag_string) == property->valueint;
                                 break;
-                            default:
+                            }
+                            default:{
                                 fprintf(stderr, "Unknown property type %d\n", property->type);
                                 propertiesMatch = false;
                                 break;
+                            }
                         }
                     }
                     if(propertiesMatch){

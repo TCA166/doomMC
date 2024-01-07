@@ -4,17 +4,16 @@
 
 #include "client.hpp"
 #include "weapons.hpp"
+#include "entity.hpp"
 
 extern "C"{
     #include "C/mcTypes.h"
     #include <time.h>
 }
 
-class lobby;
-
-class player : public client{
+class player : public client, public entity{
     public :
-        player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol);
+        player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, UUID_t uuid);
         virtual ~player();
         /*!
          @brief Handles a provided packet in reference to this instance
@@ -92,30 +91,31 @@ class player : public client{
          @param onGround whether or not the entity is on the ground
         */
         void updateEntityRotation(int32_t eid, float yaw, float pitch, bool onGround);
-        void updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int16_t z, float yaw, float pitch, bool onGround);
-        int32_t getEid() const;
         /*!
-         @brief Get's the block at the specified offset from the player position
-         @param x the x offset
-         @param y the y offset
-         @param z the z offset
-         @return the block at the specified offset
+         @brief Updates the position and rotation of an entity for this player
+         @param eid the entity id of the entity
+         @param x the delta x
+         @param y the delta y
+         @param z the delta z
+         @param yaw the yaw of the entity
+         @param pitch the pitch of the entity
+         @param onGround whether or not the entity is on the ground
         */
-        int getBlock(int x, int y, int z) const;
+        void updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int16_t z, float yaw, float pitch, bool onGround);
+        /*!
+         @brief Gets if the player is currently on the ground
+         @return whether or not the player is on the ground
+        */
         bool isOnGround() const;
     private:
-        double x, y, z;
         bool onGround;
-        float yaw, pitch;
         int health;
         struct weapon* weapons;
         struct ammo* ammo;
         int currentSlot;
-        lobby* currentLobby;
-        int32_t eid;
         void sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ);
         void setCenterChunk(int chunkX, int chunkZ);
-        unsigned long teleportId;
+        unsigned long teleportId; //last teleport id
         time_t lastKeepAlive;
 };
 

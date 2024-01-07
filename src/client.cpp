@@ -1,5 +1,6 @@
 #include "client.hpp"
 #include "server.hpp"
+#include "player.hpp"
 #include <spdlog/spdlog.h>
 
 extern "C" {
@@ -184,13 +185,13 @@ player* client::toPlayer(){
     int newSocket = dup(this->fd);
     char* username = (char*)malloc(strlen(this->username) + 1);
     strcpy(username, this->username);
-    player* p = new player(this->serv, newSocket, this->state, username, this->compression, this->protocol);
+    player* p = new player(this->serv, newSocket, this->state, username, this->compression, this->protocol, this->uuid);
     return p;
 }
 
 void client::sendRegistryCodec(){
     if(this->state != CONFIG_STATE){
-        throw "Invalid state";
+        throw std::invalid_argument("Client is not in config state");
     }
     const byteArray* codec = this->serv->getRegistryCodec();
     byte* data = new byte[codec->len];

@@ -1,5 +1,4 @@
 #include "udmf.hpp"
-#include <regex>
 #include <fstream>
 #include <streambuf>
 #include <spdlog/spdlog.h>

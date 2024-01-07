@@ -9,8 +9,8 @@ fast: clean all
 
 all: server
 
-server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o -lspdlog -lfmt -lpthread -lz
+server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o
+	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o -lspdlog -lfmt -lpthread -lz
 
 lobby.o: src/lobby.cpp
 	g++ $(CFLAGS) -c src/lobby.cpp
@@ -47,8 +47,14 @@ cJSON.o: cJSON/cJSON.c
 regionParser.o: src/C/regionParser.c
 	gcc src/C/regionParser.c -o regionParser.o -c $(CFLAGS)
 
+entity.o: src/entity.cpp
+	g++ $(CFLAGS) -c src/entity.cpp
+
 clean:
 	rm -f *.o
 	rm -f cNBT/*.o
 	rm -f cJSON/*.o
 	rm -f server
+
+requirements:
+	sudo apt install libspdlog-dev libfmt-dev

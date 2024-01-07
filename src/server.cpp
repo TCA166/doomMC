@@ -38,7 +38,7 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
     DIR* dir = opendir(mapFolder);
     if(dir == NULL){
         perror("opendir");
-        throw "Could not open map folder";
+        throw std::error_code(errno, std::generic_category());
     }
     for(unsigned int i = 0; i < lobbyCount; i++){
         dirent* ent = readdir(dir);
@@ -46,12 +46,12 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
             dir = opendir(mapFolder);
             if(dir == NULL){
                 perror("opendir");
-                throw "Could not open map folder";
+                throw std::error_code(errno, std::generic_category());
             }
             ent = readdir(dir);
             if(ent == NULL){
                 perror("readdir2");
-                throw "Could not read map folder";
+                throw std::error_code(errno, std::generic_category());
             }
         }
         if(ent->d_type == DT_REG){

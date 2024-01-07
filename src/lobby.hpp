@@ -12,7 +12,7 @@ extern "C"{
 
 #define infiniteTime -1 //infinity for epoll_wait
 
-#include "player.hpp"
+class player;
 #include "weapons.hpp"
 #include "map/map.hpp"
 
@@ -72,6 +72,10 @@ class lobby{
          @return the player at the specified index
         */
         const player* getPlayer(int n) const;
+        /*!
+         @brief Disconnects a player from the lobby
+         @param n the index of the player to disconnect
+        */
         void disconnectPlayer(int n);
         /*!
          @brief Updates the player's position on other clients
@@ -81,7 +85,22 @@ class lobby{
          @param z z delta
         */
         void updatePlayerPosition(const player* p, int x, int y, int z);
+        /*!
+         @brief Updates the player's rotation on other clients
+         @param eid the entity id of the player
+         @param yaw the yaw delta
+         @param pitch the pitch delta
+        */
         void updatePlayerRotation(const player* p, float yaw, float pitch);
+        /*!
+         @brief Updates the player's position and rotation on other clients
+         @param eid the entity id of the player
+         @param x x delta
+         @param y y delta
+         @param z z delta
+         @param yaw the yaw delta
+         @param pitch the pitch delta
+        */
         void updatePlayerPositionRotation(const player* p, int x, int y, int z, float yaw, float pitch);
     private:
         pthread_t monitor;

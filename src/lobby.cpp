@@ -77,24 +77,24 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     this->epollFd = epoll_create1(0);
     if(this->epollFd < 0){
         perror("epoll_create1");
-        throw "Failed to create epoll instance";
+        throw std::error_code(errno, std::generic_category());
     }
     if(pipe(this->epollPipe) < 0){
         perror("pipe");
-        throw "Failed to create pipe";
+        throw std::error_code(errno, std::generic_category());
     }
     epoll_event event;
     event.events = EPOLLIN;
     event.data.fd = this->epollPipe[0];
     if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, this->epollPipe[0], &event) < 0){
         perror("epoll_ctl");
-        throw "Failed to add pipe to epoll instance";
+        throw std::error_code(errno, std::generic_category());
     }
     if(pthread_create(&this->monitor, NULL, (thread)this->monitorPlayers, this) < 0){
-        throw "Failed to create monitor thread";
+        throw std::error_code(errno, std::generic_category());
     }
     if(pthread_create(&this->main, NULL, (thread)this->mainLoop, this) < 0){
-        throw "Failed to create main thread";
+        throw std::error_code(errno, std::generic_category());
     }
 }
 
@@ -130,7 +130,7 @@ void lobby::addPlayer(player* p){
             event.data.ptr = p;
             if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, p->getFd(), &event) < 0){
                 perror("epoll_ctl");
-                return;
+                throw std::error_code(errno, std::generic_category());
             }
             write(this->epollPipe[1], "\0", 1);
             p->startPlay(i, this);
@@ -155,6 +155,7 @@ void lobby::sendMessage(char* message){
 void lobby::removePlayer(player* p){
     if(epoll_ctl(this->epollFd, EPOLL_CTL_DEL, p->getFd(), NULL) < 0){
         perror("epoll_ctl");
+        throw std::error_code(errno, std::generic_category());
     }
     this->players[p->getIndex()] = NULL;
     this->playerCount--;

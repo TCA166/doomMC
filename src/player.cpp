@@ -14,16 +14,10 @@ extern "C"{
 
 //https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
 
-player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(server, fd, state, username, compression, protocol){
+player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, UUID_t) : client(server, fd, state, username, compression, protocol), entity(uuid, 0, ENTITY_TYPE_PLAYER, 0){
     //initialize the not inherited fields
     this->currentLobby = NULL;
-    this->eid = 0;
     this->heldSlot = 0;
-    this->x = 0;
-    this->y = 0;
-    this->z = 0;
-    this->yaw = 0;
-    this->pitch = 0;
     this->onGround = false;
     this->health = 20;
     this->teleportId = 0;
@@ -329,6 +323,10 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     spdlog::info("Player {} joined lobby", this->username);
 }
 
+static inline bool verifyOnGround(player* p){
+    return p->getBlock(0, -1, 0) != 0;
+}
+
 int player::handlePacket(packet* p){
     //TODO sync and expand
     if(this->state != PLAY_STATE){
@@ -346,7 +344,10 @@ int player::handlePacket(packet* p){
             double x = readBigEndianDouble(p->data, &offset);
             double y = readBigEndianDouble(p->data, &offset);
             double z = readBigEndianDouble(p->data, &offset);
-            this->onGround = readBool(p->data, &offset);
+            bool onGround = readBool(p->data, &offset);
+            if(verifyOnGround(this) == onGround){
+                this->onGround = onGround;
+            }
             if(this->x != x || this->y != y || this->z != z){
                 this->currentLobby->updatePlayerPosition(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z));
                 this->x = x;
@@ -361,7 +362,10 @@ int player::handlePacket(packet* p){
             double z = readBigEndianDouble(p->data, &offset);
             this->yaw = readBigEndianFloat(p->data, &offset);
             this->pitch = readBigEndianFloat(p->data, &offset);
-            this->onGround = readBool(p->data, &offset);
+            bool onGround = readBool(p->data, &offset);
+            if(verifyOnGround(this) == onGround){
+                this->onGround = onGround;
+            }
             if(this->x != x || this->y != y || this->z != z){
                 this->currentLobby->updatePlayerPositionRotation(this, (int32_t)(this->x - x), (int32_t)(this->y - y), (int32_t)(this->z - z), this->yaw, this->pitch);
                 this->x = x;
@@ -373,12 +377,18 @@ int player::handlePacket(packet* p){
         case SET_PLAYER_ROTATION:{
             this->yaw = readBigEndianFloat(p->data, &offset);
             this->pitch = readBigEndianFloat(p->data, &offset);
-            this->onGround = readBool(p->data, &offset);
+            bool onGround = readBool(p->data, &offset);
+            if(verifyOnGround(this) == onGround){
+                this->onGround = onGround;
+            }
             this->currentLobby->updatePlayerRotation(this, this->yaw, this->pitch);
             break;
         }
         case SET_PLAYER_ON_GROUND:{
-            this->onGround = readBool(p->data, &offset);
+            bool onGround = readBool(p->data, &offset);
+            if(verifyOnGround(this) == onGround){
+                this->onGround = onGround;
+            }
             break;
         }
         case PICK_ITEM:{
@@ -546,21 +556,6 @@ void player::updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int
     data[offset++] = toAngle(pitch);
     data[offset++] = onGround;
     this->send(data, offset, UPDATE_ENTITY_POSITION_AND_ROTATION);
-}
-
-int32_t player::getEid() const{
-    return this->eid;
-}
-
-int player::getBlock(int x, int y, int z) const{
-    int block = 0;
-    try{
-        block = this->currentLobby->getMap()->getBlock((uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z));
-    }
-    catch(const std::invalid_argument& e){
-        spdlog::error("Could not get block at {},{},{}: {}", (uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z), e.what());
-    }
-    return block;
 }
 
 bool player::isOnGround() const{
