@@ -56,5 +56,12 @@ clean:
 	rm -f cJSON/*.o
 	rm -f server
 
+check: debug
+	checkmk tests/C/mcTypesTests.check > tests/C/cTestsRunner.c
+	gcc tests/C/cTestsRunner.c mcTypes.o cNBT.o -lcheck -lm -Wall -lz -lsubunit -lrt -lpthread -o tests/C/cTestsRunner
+	./tests/C/cTestsRunner
+
 requirements:
 	sudo apt install libspdlog-dev libfmt-dev
+	sudo apt-get install check
+	sudo apt install zlib1g zlib1g-dev

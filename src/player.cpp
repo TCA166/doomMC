@@ -29,8 +29,7 @@ void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
     this->currentSlot = 0;
     byte data[1 + (2 * MAX_VAR_INT) + (sizeof(slot) * 45)];
     size_t offset = 0;
-    data[0] = 0; //window id
-    offset++;
+    data[offset++] = 0; //window id
     offset += writeVarInt(data + offset, 0); //state id
     offset += writeVarInt(data + offset, 45); //slot count
     slot slots[45];
@@ -52,8 +51,7 @@ void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
 void player::setHealth(int health){
     this->health = health;
     byte data[(sizeof(float) * 2) + MAX_VAR_INT];
-    size_t offset = 0;
-    offset += writeBigEndianFloat(data, (float)this->health);
+    size_t offset = writeBigEndianFloat(data, (float)this->health);
     offset += writeVarInt(data + offset, 20);
     offset += writeBigEndianFloat(data + offset, 0);
     this->send(data, offset, SET_HEALTH);
@@ -74,14 +72,12 @@ void player::setLocation(double x, double y, double z){
     this->z = z;
     this->setCenterChunk((int32_t)floor(x / 16), (int32_t)floor(z / 16));
     byte data[(sizeof(double) * 3) + (sizeof(float) * 2) + MAX_VAR_INT];
-    size_t offset = 0;
-    offset += writeBigEndianDouble(data + offset, this->x);
+    size_t offset = writeBigEndianDouble(data, this->x);
     offset += writeBigEndianDouble(data + offset, this->y);
     offset += writeBigEndianDouble(data + offset, this->z);
     offset += writeBigEndianFloat(data + offset, this->yaw);
     offset += writeBigEndianFloat(data + offset, this->pitch);
-    data[offset] = 0;
-    offset++;
+    data[offset++] = 0;
     offset += writeVarInt(data + offset, this->teleportId++);
     this->send(data, offset, SYNCHRONIZE_PLAYER_POSITION);
 }
@@ -89,13 +85,11 @@ void player::setLocation(double x, double y, double z){
 void player::dealDamage(int damage, int32_t eid, int damageType){
     this->health -= damage;
     byte data[1 + (MAX_VAR_INT * 5)];
-    size_t offset = 0;
-    offset += writeVarInt(data, this->eid);
+    size_t offset = writeVarInt(data, this->eid);
     offset += writeVarInt(data, damageType);
     offset += writeVarInt(data + offset, eid);
     offset += writeVarInt(data + offset, eid);
-    data[offset] = false;
-    offset++;
+    data[offset++] = false;
     this->send(data, offset, DAMAGE_EVENT);
 }
 
@@ -104,11 +98,10 @@ void player::sendMessage(char* message){
     byte* packet = new byte[msgLen + 3];
     size_t offset = 0;
     packet[offset] = TAG_STRING;
-    offset += writeBigEndianUShort(packet, msgLen);
+    offset += writeBigEndianShort(packet, msgLen);
     memcpy(packet + offset, message, msgLen);
     offset += msgLen;
-    packet[offset] = 0;
-    offset++;
+    packet[offset++] = 0;
     this->send(packet, offset, SYSTEM_CHAT_MESSAGE);
     delete[] packet;
 }
@@ -134,12 +127,9 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 const byteArray* registryCodec = this->currentLobby->getRegistryCodec();
                 byte* data = new byte[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
                 size_t offset = writeBigEndianInt(data, eid);
-                data[offset] = false; //not hardcore
-                offset++;
-                data[offset] = 0; //gamemode
-                offset++;
-                data[offset] = -1; //prev gamemode
-                offset++;
+                data[offset++] = false; //not hardcore
+                data[offset++] = 0; //gamemode
+                data[offset++] = -1; //prev gamemode
                 offset += writeVarInt(data + 7, 1);
                 offset += writeString(data + offset, dimensionName, 19);
                 //write the registry codec
@@ -151,16 +141,11 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 offset += writeVarInt(data + offset, this->currentLobby->getMaxPlayers()); //max players
                 offset += writeVarInt(data + offset, 8); //draw distance
                 offset += writeVarInt(data + offset, 8); //sim distance
-                data[offset] = false; //reduced debug info
-                offset++;
-                data[offset] = false; //immediate respawn
-                offset++;
-                data[offset] = false; //debug
-                offset++;
-                data[offset] = false; //flat
-                offset++;
-                data[offset] = false; //death location
-                offset++;
+                data[offset++] = false; //reduced debug info
+                data[offset++] = false; //immediate respawn
+                data[offset++] = false; //debug
+                data[offset++] = false; //flat
+                data[offset++] = false; //death location
                 offset += writeVarInt(data + offset, 0); //portal cooldown
                 this->send(data, offset - 1, LOGIN_PLAY); //TODO figure out why the -1 is needed
                 delete[] data;
@@ -203,8 +188,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     {
         byte data[sizeof(int32_t) + 1];
         size_t offset = writeBigEndianInt(data, this->eid);
-        data[offset] = 24;
-        offset++;
+        data[offset++] = 24;
         this->send(data, offset, ENTITY_EVENT);
     }
     //send commands
@@ -228,8 +212,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         unsigned int playerNum = this->currentLobby->getPlayerCount();
         byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
         size_t offset = 0;
-        data[offset] = flag;
-        offset++;
+        data[offset++] = flag;
         offset += writeVarInt(data + offset, playerNum);
         for(unsigned int i = 0; i < playerNum; i++){
             const player* p = this->currentLobby->getPlayer(i);
@@ -238,8 +221,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
             offset += writeVarInt(data + offset, 0);
             offset += writeVarInt(data + offset, 0);
-            data[offset] = true;
-            offset++;
+            data[offset++] = true;
             offset += writeVarInt(data + offset, p->getPing());
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
@@ -250,8 +232,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     {//send set default spawn position
         spdlog::debug("Sending set default spawn position to {},{},{} to player {}({})", positionX(spawn), positionY(spawn), positionZ(spawn), this->username, this->index);
         byte data[sizeof(position) + sizeof(float)];
-        size_t offset = 0;
-        offset += writeBigEndianLong(data + offset, spawn);
+        size_t offset = writeBigEndianLong(data, spawn);
         //angle
         offset += writeBigEndianFloat(data + offset, 0);
         this->send(data, offset, SET_DEFAULT_SPAWN_POSITION);
@@ -288,25 +269,18 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         size_t offset = writeString(p, dimensionName, 19);
         offset += writeString(p + offset, dimensionName, 19);
         offset += writeBigEndianLong(p + offset, 0);
-        p[offset] = 0; //gamemode
-        offset++;
-        p[offset] = -1; //prev gamemode
-        offset++;
-        p[offset] = false; //is debug
-        offset++;
-        p[offset] = false; //is flat
-        offset++;
-        p[offset] = 0; //data kept
-        offset++;
-        p[offset] = false; //has death location
-        offset++;
+        p[offset++] = 0; //gamemode
+        p[offset++] = -1; //prev gamemode
+        p[offset++] = false; //is debug
+        p[offset++] = false; //is flat
+        p[offset++] = 0; //data kept
+        p[offset++] = false; //has death location
         this->send(p, offset, RESPAWN);
         delete[] p;
     }
     {//send initialize world border
         byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
-        size_t offset = 0;
-        offset += writeBigEndianDouble(data, 0);
+        size_t offset = writeBigEndianDouble(data, 0);
         offset += writeBigEndianDouble(data + offset, 0);
         offset += writeBigEndianDouble(data + offset, 0);
         offset += writeBigEndianDouble(data + offset, 1000);
@@ -422,8 +396,7 @@ int player::handlePacket(packet* p){
 void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){
     const size_t neededLater = ((MAX_VAR_INT + sizeof(int64_t)) * 4) + (MAX_VAR_INT * 2) + ((MAX_VAR_INT + ((MAX_VAR_INT + 2048) * sectionCount)) * 2);
     byte* data = (byte*)malloc((sizeof(int32_t) * 2) + (sizeof(int16_t) * 2) + (17));
-    size_t offset = 0;
-    offset += writeBigEndianInt(data + offset, chunkX);
+    size_t offset = writeBigEndianInt(data, chunkX);
     offset += writeBigEndianInt(data + offset, chunkZ);
     { //heightmap NBT
         //construct the heightmap
@@ -453,11 +426,9 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
             }
         }
         //then write it into a NBT
-        data[offset] = TAG_COMPOUND;
-        offset++;
+        data[offset++] = TAG_COMPOUND;
         offset += writeBigEndianShort(data + offset, 0);
-        data[offset] = TAG_LONG_ARRAY;
-        offset++;
+        data[offset++] = TAG_LONG_ARRAY;
         offset += writeBigEndianShort(data + offset, 15);
         memcpy(data + offset, "MOTION_BLOCKING", 15);
         offset += 15;
@@ -469,8 +440,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
         memcpy(data + offset, heightmapNBT.bytes, heightmapNBT.len);
         free(heightmapNBT.bytes);
         offset += heightmapNBT.len;
-        data[offset] = TAG_INVALID;
-        offset++;
+        data[offset++] = TAG_INVALID;
     }
     byteArray buff = writeSections(sections, NULL, sectionCount, 0);
     offset += writeVarInt(data + offset, (int32_t)buff.len);
@@ -481,8 +451,7 @@ void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chu
     //block entities
     offset += writeVarInt(data + offset, 0);
     //Trust edges
-    data[offset] = false;
-    offset++;
+    data[offset++] = false;
     {//bit sets for sky light
         if(sectionCount > sizeof(int64_t) * 8){
             spdlog::error("Too many sections for sky light bit set");

@@ -54,7 +54,7 @@ size_t writeVarInt(byte* buff, int32_t value){
             return i + 1;
         }
         buff[i] = (value & SEGMENT_BITS) | CONTINUE_BIT;
-        value >>= 7;
+        value = (uint32_t)value >> 7;
         i++;
     }
 }
@@ -169,11 +169,6 @@ int16_t readShort(const byte* buff, int* index){
 
 int16_t readBigEndianShort(const byte* buff, int* index){
     int16_t s = readShort(buff, index);
-    return be16toh(s);
-}
-
-uint16_t readBigEndianUShort(const byte* buff, int* index){
-    uint16_t s = readShort(buff, index);
     return be16toh(s);
 }
 
@@ -362,11 +357,6 @@ size_t writeShort(byte* buff, int16_t num){
 
 size_t writeBigEndianShort(byte* buff, int16_t num){
     int16_t bigEndian = be16toh(num);
-    return writeShort(buff, bigEndian);
-}
-
-size_t writeBigEndianUShort(byte* buff, uint16_t num){
-    uint16_t bigEndian = be16toh(num);
     return writeShort(buff, bigEndian);
 }
 

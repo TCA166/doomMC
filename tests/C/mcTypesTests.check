@@ -1,0 +1,92 @@
+#include <check.h>
+#include <string.h>
+#include "../../src/C/mcTypes.h"
+
+#suite varInt
+
+#test zero
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 0);
+    ck_assert_msg(buff[0] == 0x00, "buff[0] == 0");
+
+#test one
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 1);
+    ck_assert_msg(buff[0] == 0x01, "buff[0] == 1");
+
+#test hundredTwentyEight
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 128);
+    ck_assert_msg(buff[0] == 0x80 && buff[1] == 0x01, "buff == 128");
+
+#test big
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 2147483647);
+    ck_assert_msg((buff[0] & buff[1] & buff[2] & buff[3]) == 0xff && buff[4] == 0x07, "buff == 2147483647");
+
+#test negative
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, -1);
+    ck_assert_msg((buff[0] & buff[1] & buff[2] & buff[3]) == 0xff && buff[4] == 0x0f, "buff == -1");
+
+#test bigNegative
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, -2147483648);
+    ck_assert_msg((buff[0] & buff[1] & buff[2] & buff[3]) == 0x80 && buff[4] == 0x08, "buff == -2147483648");
+
+#test zeroRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 0);
+    ck_assert_int_eq(readVarInt(buff, NULL), 0);
+
+#test oneRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 1);
+    ck_assert_int_eq(readVarInt(buff, NULL), 1);
+
+#test hundredTwentyEightRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 128);
+    ck_assert_int_eq(readVarInt(buff, NULL), 128);
+
+#test bigRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, 2147483647);
+    ck_assert_int_eq(readVarInt(buff, NULL), 2147483647);
+
+#test negativeRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, -1);
+    ck_assert_int_eq(readVarInt(buff, NULL), -1);
+
+#test bigNegativeRead
+    byte buff[MAX_VAR_INT];
+    writeVarInt(buff, -2147483648);
+    ck_assert_int_eq(readVarInt(buff, NULL), -2147483648);
+
+#suite bigEndian
+
+#test bigEndianInt
+    byte buff[sizeof(long)];
+    writeBigEndianShort(buff, 1);
+    ck_assert_int_eq(buff[1], 0x01);
+    writeBigEndianInt(buff, 1);
+    ck_assert_int_eq(buff[3], 0x01);
+    writeBigEndianLong(buff, 1);
+
+#test bigEndianFloat
+    byte buff[sizeof(double)];
+    //comparing to static values didn't work, probably yet another example of fucky floating point data
+    double one = 1.0;
+    writeBigEndianFloat(buff, (float)one);
+    ck_assert_int_eq(buff[3], ((byte*)&one)[0]);
+    writeBigEndianDouble(buff, one);
+    ck_assert_int_eq(buff[7], ((byte*)&one)[0]);
+
+#test bigEndianFloatRead
+    byte buff[sizeof(double)];
+    double val = 21474836.5555;
+    writeBigEndianFloat(buff, (float)val);
+    ck_assert_int_eq(val, readBigEndianFloat(buff, NULL));
+    writeBigEndianDouble(buff, val);
+    ck_assert_int_eq(val, readBigEndianDouble(buff, NULL));
