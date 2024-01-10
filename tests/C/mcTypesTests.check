@@ -90,3 +90,24 @@
     ck_assert_int_eq(val, readBigEndianFloat(buff, NULL));
     writeBigEndianDouble(buff, val);
     ck_assert_int_eq(val, readBigEndianDouble(buff, NULL));
+
+#suite packedData
+
+#test writePackedLongTest
+    int32_t arr[16] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
+    uint64_t test = writePackedLong(arr, 16, 0, 4);
+    ck_assert_int_eq(test, -81985529216486896);
+
+#suite angleChicanery
+
+#test straightTest
+    angle_t angle = toAngle(90.0f);
+    ck_assert_int_eq(angle, 64);
+
+#test cycleTest
+    angle_t angle = toAngle(1800.0f);
+    ck_assert_int_eq(angle, 0);
+
+#test pointTest
+    angle_t angle = toAngle(89.9f);
+    ck_assert_int_eq(angle, 63);
