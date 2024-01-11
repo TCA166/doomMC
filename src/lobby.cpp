@@ -225,7 +225,6 @@ void lobby::spawnPlayer(const player* p){
         if(this->players[i] == NULL || this->players[i] == p){
             continue;
         }
-        spdlog::debug("Spawning player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->players[i]->getUUID(), this->players[i]->getIndex());
         this->players[i]->spawnPlayer(p);
     }
 }

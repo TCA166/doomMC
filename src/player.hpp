@@ -105,6 +105,7 @@ class player : public client, public entity{
         /*!
          @brief Spawns an entity for the player
          @param ent entity to spawn
+         @warning Do not spawn an entity using this
         */
         void spawnEntity(const entity* ent);
         /*!
@@ -112,7 +113,16 @@ class player : public client, public entity{
          @param p the player to spawn
         */
         void spawnPlayer(const player* p);
+        /*!
+         @brief Removes a player for this player
+         @param p the player to remove
+        */
         void removePlayer(const player* p);
+        /*!
+         @brief Removes an entity for this player
+         @param ent the entity to remove
+         @warning Do not remove a player using this
+        */
         void removeEntity(const entity* ent);
         /*!
          @brief Gets if the player is currently on the ground

@@ -552,6 +552,7 @@ void player::spawnEntity(const entity* ent){
 }
 
 void player::spawnPlayer(const player* p){
+    spdlog::debug("Spawning player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->getUUID(), this->getIndex());
     {
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17)];
@@ -588,17 +589,29 @@ void player::spawnPlayer(const player* p){
 void player::removeEntity(const entity* ent){
     byte data[MAX_VAR_INT * 2];
     size_t offset = writeVarInt(data, 1);
-    offset += writeVarInt(data, ent->getEid());
+    offset += writeVarInt(data + offset, ent->getEid());
     this->send(data, offset, REMOVE_ENTITIES);
 }
 
 void player::removePlayer(const player* p){
+    //FIXME doesn't update player list(possible UUID collision)
+    spdlog::debug("Removing player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->getUUID(), this->getIndex());
     {
         byte data[MAX_VAR_INT + sizeof(UUID_t)];
         size_t offset = writeVarInt(data, 1);
         *(UUID_t*)(data + offset) = p->getUUID();
         offset += sizeof(UUID_t);
         this->send(data, offset, PLAYER_INFO_REMOVE);
+    }
+    {
+        byte data[2 + MAX_VAR_INT + sizeof(UUID_t)];
+        size_t offset = 0;
+        data[offset++] = 0x08;
+        offset += writeVarInt(data + offset, 1);
+        *(UUID_t*)(data + offset) = p->getUUID();
+        offset += sizeof(UUID_t);
+        data[offset++] = false;
+        this->send(data, offset, PLAYER_INFO_UPDATE);
     }
     this->removeEntity(p);
 }
