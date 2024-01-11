@@ -157,6 +157,12 @@ void lobby::removePlayer(player* p){
         perror("epoll_ctl");
         throw std::error_code(errno, std::generic_category());
     }
+    for(unsigned int i = 0; i < this->playerCount; i++){
+        if(this->players[i] == NULL || this->players[i] == p){
+            continue;
+        }
+        this->players[i]->removePlayer(p);
+    }
     this->players[p->getIndex()] = NULL;
     this->playerCount--;
     spdlog::debug("Removing player {}({}) from lobby", p->getUUID(), p->getIndex());
@@ -211,5 +217,15 @@ void lobby::updatePlayerPositionRotation(const player* p, int x, int y, int z, f
         }
         spdlog::debug("Moving player {}({}) position by ({}, {}, {}) and rotation to ({}, {})", p->getUUID(), p->getIndex(), x, y, z, yaw, pitch);
         this->players[i]->updateEntityPositionRotation(p->getEid(), (int16_t)x, (int16_t)y, (int16_t)z, yaw, pitch, p->isOnGround());
+    }
+}
+
+void lobby::spawnPlayer(const player* p){
+    for(unsigned int i = 0; i < this->playerCount; i++){
+        if(this->players[i] == NULL || this->players[i] == p){
+            continue;
+        }
+        spdlog::debug("Spawning player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->players[i]->getUUID(), this->players[i]->getIndex());
+        this->players[i]->spawnPlayer(p);
     }
 }

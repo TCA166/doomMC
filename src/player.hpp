@@ -103,10 +103,23 @@ class player : public client, public entity{
         */
         void updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int16_t z, float yaw, float pitch, bool onGround);
         /*!
+         @brief Spawns an entity for the player
+         @param ent entity to spawn
+        */
+        void spawnEntity(const entity* ent);
+        /*!
+         @brief Spawns a player for this player
+         @param p the player to spawn
+        */
+        void spawnPlayer(const player* p);
+        void removePlayer(const player* p);
+        void removeEntity(const entity* ent);
+        /*!
          @brief Gets if the player is currently on the ground
          @return whether or not the player is on the ground
         */
         bool isOnGround() const;
+        UUID_t getUUID() const;
     private:
         bool onGround;
         int health;

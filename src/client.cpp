@@ -104,9 +104,6 @@ int client::handlePacket(packet* p){
                 cJSON* version = cJSON_GetObjectItemCaseSensitive(status, "version");
                 cJSON* protocol = cJSON_GetObjectItemCaseSensitive(version, "protocol");
                 cJSON_SetIntValue(protocol, this->protocol);
-                cJSON* players = cJSON_GetObjectItemCaseSensitive(status, "players");
-                cJSON* online = cJSON_GetObjectItemCaseSensitive(players, "online");
-                cJSON_SetIntValue(online, this->serv->getPlayerCount());
                 char* json = cJSON_Print(status);
                 size_t sizeJson = strlen(json);
                 byte* data = new byte[sizeJson + 1 + MAX_VAR_INT];

@@ -31,3 +31,39 @@ int entity::getBlock(int x, int y, int z) const{
     }
     return block;
 }
+
+UUID_t entity::getUUID() const{
+    return this->entityUUID;
+}
+
+entity_t entity::getEntityType() const{
+    return this->entityType;
+}
+
+int32_t entity::getEntityData() const{
+    return this->entityData;
+}
+
+double entity::getX() const{
+    return this->x;
+}
+
+double entity::getY() const{
+    return this->y;
+}
+
+double entity::getZ() const{
+    return this->z;
+}
+
+float entity::getYaw() const{
+    return this->yaw;
+}
+
+float entity::getPitch() const{
+    return this->pitch;
+}
+
+float entity::getHeadYaw() const{
+    return this->headYaw;
+}

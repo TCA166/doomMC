@@ -26,7 +26,6 @@ class client{
         char* username; //the username of the client or NULL if not logged in
         int compression; //the compression level established with the client
         int32_t protocol; //the protocol version of the client
-        UUID_t uuid; //the uuid of the client
         int index; //the index of the client in server/lobby list
     private:
         server* serv;
@@ -34,6 +33,7 @@ class client{
          @brief Sends the client the server registry codec. Must be called in config state
         */
         void sendRegistryCodec();
+        UUID_t uuid; //the uuid of the client
     public:
         /*!
          @brief Constructs a client instance

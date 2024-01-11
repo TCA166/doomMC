@@ -102,6 +102,11 @@ class lobby{
          @param pitch the pitch delta
         */
         void updatePlayerPositionRotation(const player* p, int x, int y, int z, float yaw, float pitch);
+        /*!
+         @brief Spawns the player for all the other players in lobby
+         @param p the player to sync
+        */
+        void spawnPlayer(const player* p);
     private:
         pthread_t monitor;
         pthread_t main;

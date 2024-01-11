@@ -41,6 +41,15 @@ class entity{
          @return the block at the specified offset
         */
         int getBlock(int x, int y, int z) const;
+        UUID_t getUUID() const;
+        entity_t getEntityType() const;
+        virtual int32_t getEntityData() const;
+        double getX() const;
+        double getY() const;
+        double getZ() const;
+        float getYaw() const;
+        float getPitch() const;
+        float getHeadYaw() const;
 };
 
 #endif

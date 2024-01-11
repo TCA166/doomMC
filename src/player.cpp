@@ -14,7 +14,7 @@ extern "C"{
 
 //https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
 
-player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, UUID_t) : client(server, fd, state, username, compression, protocol), entity(uuid, 0, ENTITY_TYPE_PLAYER, 0){
+player::player(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, UUID_t uuid) : client(server, fd, state, username, compression, protocol), entity(uuid, 0, ENTITY_TYPE_PLAYER, 0){
     //initialize the not inherited fields
     this->currentLobby = NULL;
     this->heldSlot = 0;
@@ -207,7 +207,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         this->send(data, offset, SERVER_DATA);
     }
     {//update player list
-        
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         unsigned int playerNum = this->currentLobby->getPlayerCount();
         byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
@@ -294,6 +293,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
+    this->currentLobby->spawnPlayer(this);
     spdlog::info("Player {} joined lobby", this->username);
 }
 
@@ -476,14 +476,14 @@ void player::disconnect(){
     if(this->fd == -1){
         return;
     }
-    spdlog::debug("Disconnecting client {}({})", this->uuid, this->index);
+    spdlog::debug("Disconnecting client {}({})", this->getUUID(), this->index);
     this->send(NULL, 0, DISCONNECT_PLAY); //send disconnect packet
     this->currentLobby->removePlayer(this);
 }
 
 player::~player(){
     //FIXME invalid pointer exception after this was called when two players were on the server
-    spdlog::debug("Deleting player {}({})", this->uuid, this->index);
+    spdlog::debug("Deleting player {}({})", this->getUUID(), this->index);
 }
 
 void player::keepAlive(){
@@ -525,6 +525,82 @@ void player::updateEntityPositionRotation(int32_t eid, int16_t x, int16_t y, int
     data[offset++] = toAngle(pitch);
     data[offset++] = onGround;
     this->send(data, offset, UPDATE_ENTITY_POSITION_AND_ROTATION);
+}
+
+UUID_t player::getUUID() const{
+    return entity::getUUID();
+}
+
+void player::spawnEntity(const entity* ent){
+    byte data[(MAX_VAR_INT * 3) + sizeof(UUID_t) + (sizeof(double) * 3) + (sizeof(angle_t) * 3) + (sizeof(short) * 3)];
+    size_t offset = writeVarInt(data, ent->getEid());
+    {
+        UUID_t uid = ent->getUUID();
+        memcpy(data + offset, &uid, sizeof(UUID_t));
+        offset += sizeof(UUID_t);
+    }
+    offset += writeVarInt(data + offset, ent->getEntityType());
+    offset += writeBigEndianDouble(data + offset, ent->getX());
+    offset += writeBigEndianDouble(data + offset, ent->getY());
+    offset += writeBigEndianDouble(data + offset, ent->getZ());
+    data[offset++] = toAngle(ent->getPitch());
+    data[offset++] = toAngle(ent->getYaw());
+    data[offset++] = toAngle(ent->getHeadYaw());
+    offset += writeVarInt(data + offset, ent->getEntityData());
+    offset += sizeof(short) * 3;
+    this->send(data, offset, SPAWN_ENTITY);
+}
+
+void player::spawnPlayer(const player* p){
+    {
+        byte flag = 0x01 | 0x04 | 0x08 | 0x10;
+        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17)];
+        size_t offset = 0;
+        data[offset++] = flag;
+        offset += writeVarInt(data + offset, 1);
+        *(data + offset) = p->getUUID();
+        offset += sizeof(UUID_t);
+        offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
+        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 0);
+        data[offset++] = true;
+        offset += writeVarInt(data + offset, p->getPing());
+        this->send(data, offset, PLAYER_INFO_UPDATE);
+        delete[] data;
+    }
+    {
+        byte data[MAX_VAR_INT + sizeof(UUID_t) + (sizeof(double) * 3) + (sizeof(angle_t) * 2)];
+        size_t offset = writeVarInt(data, p->getEid());
+        {
+            UUID_t uid = p->getUUID();
+            memcpy(data + offset, &uid, sizeof(UUID_t));
+            offset += sizeof(UUID_t);
+        }
+        offset += writeBigEndianDouble(data + offset, p->getX());
+        offset += writeBigEndianDouble(data + offset, p->getY());
+        offset += writeBigEndianDouble(data + offset, p->getZ());
+        data[offset++] = toAngle(p->getPitch());
+        data[offset++] = toAngle(p->getYaw());
+        this->send(data, offset, SPAWN_PLAYER);
+    }
+}
+
+void player::removeEntity(const entity* ent){
+    byte data[MAX_VAR_INT * 2];
+    size_t offset = writeVarInt(data, 1);
+    offset += writeVarInt(data, ent->getEid());
+    this->send(data, offset, REMOVE_ENTITIES);
+}
+
+void player::removePlayer(const player* p){
+    {
+        byte data[MAX_VAR_INT + sizeof(UUID_t)];
+        size_t offset = writeVarInt(data, 1);
+        *(UUID_t*)(data + offset) = p->getUUID();
+        offset += sizeof(UUID_t);
+        this->send(data, offset, PLAYER_INFO_REMOVE);
+    }
+    this->removeEntity(p);
 }
 
 bool player::isOnGround() const{

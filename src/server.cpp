@@ -71,6 +71,9 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
     closedir(dir);
     this->connectedCount = 0;
     this->connected = new client*[maxConnected]();
+    cJSON* players = cJSON_GetObjectItemCaseSensitive(message, "players");
+    cJSON* max = cJSON_GetObjectItemCaseSensitive(players, "max");
+    cJSON_SetNumberValue(max, maxPlayers * lobbyCount);
     this->message = message;
 }
 
@@ -126,6 +129,9 @@ client* server::getClient(int n){
 }
 
 cJSON* server::getMessage(){
+    cJSON* players = cJSON_GetObjectItemCaseSensitive(this->message, "players");
+    cJSON* online = cJSON_GetObjectItemCaseSensitive(players, "online");
+    cJSON_SetIntValue(online, this->getPlayerCount());
     return (cJSON*)this->message;
 }
 
