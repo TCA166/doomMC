@@ -22,7 +22,7 @@ class server{
         //array of connected clients
         client** connected;
         //the status message
-        const cJSON* message;
+        cJSON* message;
         //stored registry codec
         byteArray registryCodec;
         //epoll file descriptor
@@ -61,6 +61,7 @@ class server{
          @param registryCodec parsed template registry codec
         */
         server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, const char* statusFilename, const char* registryCodecFilename, const char* versionFilename);
+        virtual ~server();
         /*!
          @brief Creates a new client instance
          @param socket the socket file descriptor associated with the client

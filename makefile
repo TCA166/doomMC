@@ -1,16 +1,22 @@
 
 CFLAGS += -Wunused-result -Wall -Wunused-parameter
 
+all: server
+
 debug: CFLAGS+=-Werror -g
 debug: all
 
 fast: CFLAGS+=-Ofast 
 fast: clean all
 
-all: server
+server: src/main.cpp complete.o
+	g++ $(CFLAGS) -o server src/main.cpp complete.o -lspdlog -lfmt -lpthread -lz
 
-server: mcTypes.o networkingMc.o src/server.cpp cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o
-	g++ $(CFLAGS) -o server src/server.cpp mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o -lspdlog -lfmt -lpthread -lz
+complete.o: mcTypes.o networkingMc.o server.o cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o
+	ld -relocatable server.o mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o -o complete.o
+
+server.o: src/server.cpp
+	g++ $(CFLAGS) -c src/server.cpp
 
 lobby.o: src/lobby.cpp
 	g++ $(CFLAGS) -c src/lobby.cpp
@@ -60,6 +66,9 @@ check: debug
 	checkmk tests/C/mcTypesTests.check > tests/C/cTestsRunner.c
 	gcc tests/C/cTestsRunner.c mcTypes.o cNBT.o -lcheck -lm -Wall -lz -lsubunit -lrt -lpthread -o tests/C/cTestsRunner
 	./tests/C/cTestsRunner
+
+fuzz: debug
+	g++ tests/fuzz/serverFuzzer.cpp server.o -o tests/fuzz/serverFuzzer -lspdlog -lfmt -lpthread -lz
 
 requirements:
 	sudo apt install libspdlog-dev libfmt-dev

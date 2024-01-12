@@ -37,7 +37,7 @@ void* lobby::monitorPlayers(lobby* thisLobby){
                     continue;
                 }
                 packet pack = p->getPacket();
-                int res = p->handlePacket(&pack);
+                p->handlePacket(&pack);
                 free(pack.data);
             }
         }
