@@ -27,17 +27,92 @@ extern  "C"{
 
 #define MAX_CLIENTS 100
 
-#define templateRegistry "registryCodec.nbt"
-
 #define mapFolder "maps/"
 
-server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, cJSON* message, nbt_node* registryCodec, cJSON* version, int epollFd) : lobbyCount(lobbyCount), maxConnected(maxConnected), epollFd(epollFd){
-    buffer codec = nbt_dump_binary(registryCodec);
-    this->registryCodec = {codec.data, codec.len};
+static cJSON* readJson(const char* filename){
+    FILE* statusFile = fopen(filename, "r");
+    if(statusFile == NULL){
+        perror("fopen");
+        return NULL;
+    }
+    fseek(statusFile, 0, SEEK_END);
+    long statusSize = ftell(statusFile);
+    rewind(statusFile);
+    char* statusJson = (char*)calloc(statusSize + 1, sizeof(char));
+    fread(statusJson, 1, statusSize, statusFile);
+    fclose(statusFile);
+    cJSON* status = cJSON_ParseWithLength(statusJson, statusSize);
+    if(status == NULL){
+        perror("cJSON_Parse");
+        return NULL;
+    }
+    return status;
+}
+
+static nbt_node* readNBT(const char* filename){
+    FILE* codecFile = fopen(filename, "rb");
+    if(codecFile == NULL){
+        perror("fopen");
+        return NULL;
+    }
+    fseek(codecFile, 0, SEEK_END);
+    size_t codecSize = ftell(codecFile);
+    rewind(codecFile);
+    byte* codecData = (byte*)malloc(codecSize);
+    fread(codecData, 1, codecSize, codecFile);
+    fclose(codecFile);
+    nbt_node* codec = nbt_parse(codecData, codecSize);
+    if(codec == NULL){
+        perror("nbt_parse");
+        return NULL;
+    }
+    return codec;
+}
+
+server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, const char* statusFilename, const char* registryCodecFilename, const char* versionFilename) : lobbyCount(lobbyCount), maxConnected(maxConnected){
+    {//create the master socket
+        this->masterSocket = socket(AF_INET, SOCK_STREAM, 0);
+        if(masterSocket < 0){
+            throw std::error_code(errno, std::generic_category());
+        }
+        int opt = true;
+        //set master socket to allow multiple connections
+        if(setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0 ){
+            throw std::error_code(errno, std::generic_category());
+        }
+        //master socket address
+        this->address = {AF_INET, htons(port), INADDR_ANY};
+        this->address.sin_addr.s_addr = INADDR_ANY;
+        this->addrLen = sizeof(this->address);
+        //bind the master socket to localhost port
+        if(bind(masterSocket, (struct sockaddr*)&this->address, this->addrLen) < 0){
+            throw std::error_code(errno, std::generic_category());
+        }
+        //try to specify maximum of 5 pending connections for the master socket
+        if(listen(masterSocket, MAX_LISTEN) < 0){
+            throw std::error_code(errno, std::generic_category());
+        }
+    }
+    {
+        nbt_node* registryCodec = readNBT(registryCodecFilename);
+        buffer codec = nbt_dump_binary(registryCodec);
+        nbt_free(registryCodec);
+        this->registryCodec = {codec.data, codec.len};
+    }
     this->lobbies = new lobby*[lobbyCount];
+    this->epollFd = epoll_create1(0);
+    if(this->epollFd < 0){
+        throw std::error_code(errno, std::generic_category());
+    }
+    {
+        epoll_event masterEvent;
+        masterEvent.events = EPOLLIN;
+        masterEvent.data.fd = masterSocket;
+        epoll_ctl(this->epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent);
+    }
+    cJSON* version = readJson(versionFilename);
     DIR* dir = opendir(mapFolder);
     if(dir == NULL){
-        perror("opendir");
         throw std::error_code(errno, std::generic_category());
     }
     for(unsigned int i = 0; i < lobbyCount; i++){
@@ -45,12 +120,10 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
         if(ent == NULL){
             dir = opendir(mapFolder);
             if(dir == NULL){
-                perror("opendir");
                 throw std::error_code(errno, std::generic_category());
             }
             ent = readdir(dir);
             if(ent == NULL){
-                perror("readdir2");
                 throw std::error_code(errno, std::generic_category());
             }
         }
@@ -69,12 +142,61 @@ server::server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int ma
         }
     }
     closedir(dir);
+    cJSON_free(version);
     this->connectedCount = 0;
     this->connected = new client*[maxConnected]();
-    cJSON* players = cJSON_GetObjectItemCaseSensitive(message, "players");
+    cJSON* status = readJson(statusFilename);
+    cJSON* players = cJSON_GetObjectItemCaseSensitive(status, "players");
     cJSON* max = cJSON_GetObjectItemCaseSensitive(players, "max");
     cJSON_SetNumberValue(max, maxPlayers * lobbyCount);
-    this->message = message;
+    this->message = status;
+}
+
+int server::run(){
+    epoll_event* events = new epoll_event[maxConnected];
+    while(true){
+        //wait for an activity on one of the sockets, timeout is NULL, so wait indefinitely
+        int activity = epoll_wait(this->epollFd, events, this->maxConnected, infiniteTime);
+        if((activity < 0) && (errno != EINTR)){
+            perror("select");
+            return EXIT_FAILURE;
+        }
+        for(int i = 0; i < activity; i++){
+            if(events[i].events & EPOLLRDHUP){
+                client* c = (client*)events[i].data.ptr;
+                this->removeClient(c->getIndex());
+                delete c;
+                continue;
+            }
+            if(events[i].data.fd == masterSocket){
+                int newSocket;
+                if((newSocket = accept(masterSocket, (struct sockaddr*)&this->address, (socklen_t*)&this->addrLen)) < 0){
+                    perror("accept");
+                    return EXIT_FAILURE;
+                }
+                //set newSocket to non blocking
+                if(fcntl(newSocket, F_SETFL, fcntl(newSocket, F_GETFL, 0) | O_NONBLOCK) < 0){
+                    perror("fcntl");
+                    return EXIT_FAILURE;
+                }
+                spdlog::debug("New connection from {}", inet_ntoa(address.sin_addr));
+                this->createClient(newSocket);
+            }
+            else if(events[i].data.ptr != NULL){
+                client* c = (client*)events[i].data.ptr;
+                packet p = c->getPacket();
+                c->handlePacket(&p);
+                free(p.data);
+                if((errno != EAGAIN && errno != EWOULDBLOCK && errno > 0) || c->getState() == PLAY_STATE){
+                    spdlog::debug("Server losing track of client {}({})", c->getUUID(), c->getIndex());
+                    this->removeClient(c->getIndex());
+                    delete c;
+                }
+            }
+        }
+    }
+    delete[] events;
+    return EXIT_SUCCESS;
 }
 
 unsigned int server::getLobbyCount(){
@@ -95,7 +217,7 @@ void server::createClient(int socket){
         close(socket);
         return;
     }
-    for(int i = 0; i < MAX_CLIENTS; i++){
+    for(int i = 0; i < this->maxConnected; i++){
         if(this->getClient(i) == NULL){
             this->connected[i] = new client(this, socket, i);
             //add newSocket to epoll
@@ -156,95 +278,6 @@ int main(int argc, char *argv[]){
     if(argc > 1){
         logLevel = atoi(argv[1]);
     }
-    //socket that accepts new connections
-    int masterSocket = socket(AF_INET, SOCK_STREAM, 0);
-    if(masterSocket < 0){
-        perror("socket");
-        return EXIT_FAILURE;
-    }
-    int opt = true;
-    //set master socket to allow multiple connections
-    if(setsockopt(masterSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0 ){
-        perror("setsockopt");
-        return EXIT_FAILURE;
-    }
-    //master socket address
-    struct sockaddr_in address = {AF_INET, htons(PORT), INADDR_ANY};
-    address.sin_addr.s_addr = INADDR_ANY;
-    size_t addrlen = sizeof(address);
-    //bind the master socket to localhost port 8080
-    if(bind(masterSocket, (struct sockaddr *)&address, sizeof(address)) < 0){
-        perror("bind");
-        return EXIT_FAILURE;
-    }
-    //try to specify maximum of 5 pending connections for the master socket
-    if(listen(masterSocket, MAX_LISTEN) < 0){
-        perror("listen");
-        return EXIT_FAILURE;
-    }
-    //get the status.json file
-    cJSON* status;
-    {
-        FILE* statusFile = fopen("status.json", "r");
-        if(statusFile == NULL){
-            perror("fopen");
-            return EXIT_FAILURE;
-        }
-        fseek(statusFile, 0, SEEK_END);
-        long statusSize = ftell(statusFile);
-        rewind(statusFile);
-        char* statusJson = (char*)calloc(statusSize + 1, sizeof(char));
-        fread(statusJson, 1, statusSize, statusFile);
-        fclose(statusFile);
-        status = cJSON_ParseWithLength(statusJson, statusSize);
-        if(status == NULL){
-            perror("cJSON_Parse");
-            return EXIT_FAILURE;
-        }
-    }
-    nbt_node* codec;
-    {
-        FILE* codecFile = fopen(templateRegistry, "rb");
-        if(codecFile == NULL){
-            perror("fopen");
-            return EXIT_FAILURE;
-        }
-        fseek(codecFile, 0, SEEK_END);
-        size_t codecSize = ftell(codecFile);
-        rewind(codecFile);
-        byte* codecData = (byte*)malloc(codecSize);
-        fread(codecData, 1, codecSize, codecFile);
-        fclose(codecFile);
-        codec = nbt_parse(codecData, codecSize);
-        if(codec == NULL){
-            perror("nbt_parse");
-            return EXIT_FAILURE;
-        }
-    }
-    cJSON* version;
-    {
-        FILE* versionFile = fopen("version.json", "r");
-        if(versionFile == NULL){
-            perror("fopen");
-            return EXIT_FAILURE;
-        }
-        fseek(versionFile, 0, SEEK_END);
-        long versionSize = ftell(versionFile);
-        rewind(versionFile);
-        char* versionJson = (char*)calloc(versionSize + 1, sizeof(char));
-        fread(versionJson, 1, versionSize, versionFile);
-        fclose(versionFile);
-        version = cJSON_ParseWithLength(versionJson, versionSize);
-        if(version == NULL){
-            perror("cJSON_Parse");
-            return EXIT_FAILURE;
-        }
-    }
-    int epollFd = epoll_create1(0);
-    if(epollFd < 0){
-        perror("epoll_create1");
-        return EXIT_FAILURE;
-    }
     {//setup log
         std::vector<spdlog::sink_ptr> sinks;
         sinks.push_back(std::make_shared<spdlog::sinks::stdout_sink_st>());
@@ -256,66 +289,7 @@ int main(int argc, char *argv[]){
         spdlog::flush_every(std::chrono::seconds(3));
         spdlog::set_level((spdlog::level::level_enum)logLevel);
     }
-    server mainServer = server(10, MAX_LOBBIES, MAX_CLIENTS, status, codec, version, epollFd);
-    {
-        epoll_event masterEvent;
-        masterEvent.events = EPOLLIN;
-        masterEvent.data.fd = masterSocket;
-        epoll_ctl(epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent);
-    }
-    epoll_event events[MAX_CLIENTS];
-    spdlog::info("Server started on port {}", PORT);
-    while(true){
-        //wait for an activity on one of the sockets, timeout is NULL, so wait indefinitely
-        int activity = epoll_wait(epollFd, events, MAX_CLIENTS, infiniteTime);
-        if((activity < 0) && (errno != EINTR)){
-            perror("select");
-            return EXIT_FAILURE;
-        }
-        for(int i = 0; i < activity; i++){
-            if(events[i].events & EPOLLRDHUP){
-                client* c = (client*)events[i].data.ptr;
-                mainServer.removeClient(c->getIndex());
-                delete c;
-                continue;
-            }
-            if(events[i].data.fd == masterSocket){
-                int newSocket;
-                if((newSocket = accept(masterSocket, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0){
-                    perror("accept");
-                    return EXIT_FAILURE;
-                }
-                //set newSocket to non blocking
-                if(fcntl(newSocket, F_SETFL, fcntl(newSocket, F_GETFL, 0) | O_NONBLOCK) < 0){
-                    perror("fcntl");
-                    return EXIT_FAILURE;
-                }
-                spdlog::debug("New connection from {}", inet_ntoa(address.sin_addr));
-                mainServer.createClient(newSocket);
-            }
-            else if(events[i].data.ptr != NULL){
-                client* c = (client*)events[i].data.ptr;
-                packet p = c->getPacket();
-                int res = 1;
-                while(!packetNull(p)){
-                    res = c->handlePacket(&p);
-                    if(res < 1 || c->getState() == PLAY_STATE){
-                        free(p.data);
-                        break;
-                    }
-                    free(p.data);
-                    p = c->getPacket();
-                }
-                if((errno != EAGAIN && errno != EWOULDBLOCK) || c->getState() == PLAY_STATE){
-                    spdlog::debug("Server losing track of client {}({})", c->getUUID(), c->getIndex());
-                    mainServer.removeClient(c->getIndex());
-                    delete c;
-                }
-            }
-        }
-    }
-    nbt_free(codec);
-    cJSON_Delete(status);
-    cJSON_Delete(version);
-    return EXIT_SUCCESS;
+    server mainServer = server(PORT, 10, MAX_LOBBIES, MAX_CLIENTS, "status.json", "registryCodec.nbt", "version.json");
+    spdlog::info("Server starting on port {}", PORT);
+    return mainServer.run();
 }

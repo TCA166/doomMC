@@ -12,6 +12,8 @@ extern "C"{
 
 #define infiniteTime -1 //infinity for epoll_wait
 
+typedef void*(*thread)(void*);
+
 class player;
 #include "weapons.hpp"
 #include "map/map.hpp"

@@ -14,8 +14,6 @@ extern "C"{
     #include <sys/epoll.h>
 }
 
-typedef void*(*thread)(void*);
-
 const byteArray* lobby::getRegistryCodec() const{
     return this->registryCodec;
 }
@@ -39,14 +37,8 @@ void* lobby::monitorPlayers(lobby* thisLobby){
                     continue;
                 }
                 packet pack = p->getPacket();
-                while(!packetNull(pack)){
-                    int res = p->handlePacket(&pack);
-                    if(res < 1){
-                        break;
-                    }
-                    free(pack.data);
-                    pack = p->getPacket();
-                }
+                int res = p->handlePacket(&pack);
+                free(pack.data);
             }
         }
         else if(activity < 0 && errno != EINTR){

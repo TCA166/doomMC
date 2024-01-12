@@ -7,6 +7,7 @@
 
 extern "C"{
     #include "../cJSON/cJSON.h"
+    #include <netinet/in.h>
 }
 
 #define NO_CONFIG 763
@@ -16,11 +17,20 @@ class server{
         const unsigned int lobbyCount;
         unsigned int connectedCount;
         const unsigned int maxConnected;
+        //array of lobbies in server
         lobby** lobbies;
+        //array of connected clients
         client** connected;
+        //the status message
         const cJSON* message;
+        //stored registry codec
         byteArray registryCodec;
-        const int epollFd;
+        //epoll file descriptor
+        int epollFd;
+        //master socket for receiving new connections
+        int masterSocket;
+        struct sockaddr_in address;
+        size_t addrLen;
     public:
         /*!
          @brief Gets the player count
@@ -50,7 +60,7 @@ class server{
          @param status the status message
          @param registryCodec parsed template registry codec
         */
-        server(unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, cJSON* status, nbt_node* registryCodec, cJSON* version, int epollFd);
+        server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, unsigned int maxConnected, const char* statusFilename, const char* registryCodecFilename, const char* versionFilename);
         /*!
          @brief Creates a new client instance
          @param socket the socket file descriptor associated with the client
@@ -76,6 +86,11 @@ class server{
          @return the registry codec
         */
         const byteArray* getRegistryCodec();
+        /*!
+         @brief Runs the server 
+         @return 0 on success, -1 on error
+        */
+        int run();
 };
 
 #endif
