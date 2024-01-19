@@ -21,6 +21,10 @@ static byteArray readSocket(int socketFd){
         if((curByte & CONTINUE_BIT) == 0) break;
         position += 7;
     }
+    if(size == 0 || size > MAX_PACKET_SIZE){
+        errno = ERANGE;
+        return result;
+    }
     result.len = size;
     byte* input = calloc(size, sizeof(byte));
     int nRead = 0;
@@ -64,12 +68,20 @@ static packet parsePacket(const byteArray* dataArray, int compression){
     else{
         result.size = dataArray->len;
     }
-    result.packetId = readVarInt(data, &index);
+    int32_t packetId = readVarInt(data, &index);
+    if(packetId > MAX_PACKET_ID){
+        if(alloc){
+            free(data);
+        }
+        errno = ERANGE;
+        return nullPacket;
+    }
+    result.packetId = packetId;
     result.size -= 1; //packetId will should take up a byte at most
     result.data = calloc(result.size, sizeof(byte));
     memcpy(result.data, data + index, result.size);
     if(alloc){ //we discard the const since actually we no longer have a const value
-        free((byte*)data);
+        free(data);
     }
     return result;
 }

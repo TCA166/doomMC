@@ -187,6 +187,9 @@ int server::run(){
             else if(events[i].data.ptr != NULL){
                 client* c = (client*)events[i].data.ptr;
                 packet p = c->getPacket();
+                if(packetNull(p)){
+                    continue;
+                }
                 c->handlePacket(&p);
                 free(p.data);
                 if((errno != EAGAIN && errno != EWOULDBLOCK && errno > 0) || c->getState() == PLAY_STATE){

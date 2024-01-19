@@ -20,6 +20,9 @@ typedef struct packet{
 #define packetNull(packet) (packet.data == NULL && packet.size == -1 && packet.packetId == 0)
 //A packet that is considered to be NULL
 #define nullPacket (packet){-1, 0, NULL}
+#define MAX_PACKET_ID UINT8_MAX
+//Maximum size of a packet
+#define MAX_PACKET_SIZE 2097151
 
 /*!
  @brief Reads a packet from a socket

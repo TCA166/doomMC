@@ -68,7 +68,8 @@ check: debug
 	./tests/C/cTestsRunner
 
 fuzz: debug
-	g++ tests/fuzz/serverFuzzer.cpp server.o -o tests/fuzz/serverFuzzer -lspdlog -lfmt -lpthread -lz
+	g++ tests/fuzz/serverFuzzer.cpp complete.o -o tests/fuzz/serverFuzzer -lspdlog -lfmt -lpthread -lz -g
+	gdb -ex=r --args tests/fuzz/serverFuzzer
 
 requirements:
 	sudo apt install libspdlog-dev libfmt-dev
