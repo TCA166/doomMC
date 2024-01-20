@@ -34,7 +34,8 @@
 *.out
 *.app
 server
-serverFuzzer
+basicFuzzer
+packetFuzzer
 
 #vscode
 .vscode

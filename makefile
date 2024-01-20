@@ -67,9 +67,16 @@ check: debug
 	gcc tests/C/cTestsRunner.c mcTypes.o cNBT.o -lcheck -lm -Wall -lz -lsubunit -lrt -lpthread -o tests/C/cTestsRunner
 	./tests/C/cTestsRunner
 
-fuzz: debug
-	g++ tests/fuzz/serverFuzzer.cpp complete.o -o tests/fuzz/serverFuzzer -lspdlog -lfmt -lpthread -lz -g
-	gdb -ex=r --args tests/fuzz/serverFuzzer
+tests/fuzz/serverFuzzer.o: tests/fuzz/serverFuzzer.cpp
+	g++ tests/fuzz/serverFuzzer.cpp -c -o tests/fuzz/serverFuzzer.o -g
+
+basicFuzzer: debug tests/fuzz/serverFuzzer.o tests/fuzz/basicFuzzer.cpp
+	g++ tests/fuzz/basicFuzzer.cpp complete.o tests/fuzz/serverFuzzer.o -o tests/fuzz/basicFuzzer -lspdlog -lfmt -lpthread -lz -g
+	gdb -ex=r --args tests/fuzz/basicFuzzer 2
+
+packetFuzzer: debug tests/fuzz/serverFuzzer.o tests/fuzz/packetFuzzer.cpp
+	g++ tests/fuzz/packetFuzzer.cpp complete.o tests/fuzz/serverFuzzer.o -o tests/fuzz/packetFuzzer -lspdlog -lfmt -lpthread -lz -g
+	gdb -ex=r --args tests/fuzz/packetFuzzer 2
 
 requirements:
 	sudo apt install libspdlog-dev libfmt-dev
