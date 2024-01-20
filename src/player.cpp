@@ -21,6 +21,7 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->onGround = false;
     this->health = 20;
     this->teleportId = 0;
+    this->lastKeepAlive = time(NULL);
 }
 
 void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
