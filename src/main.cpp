@@ -23,7 +23,21 @@ int main(int argc, char *argv[]){
         spdlog::flush_every(std::chrono::seconds(3));
         spdlog::set_level((spdlog::level::level_enum)logLevel);
     }
-    server mainServer = server(PORT, 10, MAX_LOBBIES, MAX_CLIENTS, "status.json", "registryCodec.nbt", "version.json");
-    spdlog::info("Server starting on port {}", PORT);
-    return mainServer.run();
+    try{
+        server mainServer = server(PORT, 10, MAX_LOBBIES, MAX_CLIENTS, "status.json", "registryCodec.nbt", "version.json");
+        spdlog::info("Server starting on port {}", PORT);
+        return mainServer.run();
+    }
+    catch(const std::exception& e){
+        spdlog::error("{}", e.what());
+        return 1;
+    }
+    catch(const std::error_code& e){
+        spdlog::error("{} exception. Code:{}, {}", e.category().name(), e.value(), e.message());
+        return 1;
+    }
+    catch(...){
+        spdlog::error("Unknown error");
+        return 1;
+    }
 }

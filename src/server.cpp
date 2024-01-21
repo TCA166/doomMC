@@ -101,23 +101,25 @@ server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, 
         epoll_event masterEvent;
         masterEvent.events = EPOLLIN;
         masterEvent.data.fd = masterSocket;
-        epoll_ctl(this->epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent);
+        if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, masterSocket, &masterEvent) < 0){
+            throw std::error_code(errno, std::generic_category());
+        }
     }
     cJSON* version = readJson(versionFilename);
     DIR* dir = opendir(mapFolder);
     if(dir == NULL){
+        spdlog::error("Could not open map folder {}", mapFolder);
         throw std::error_code(errno, std::generic_category());
     }
     for(unsigned int i = 0; i < lobbyCount; i++){
         dirent* ent = readdir(dir);
         if(ent == NULL){
-            dir = opendir(mapFolder);
-            if(dir == NULL){
+            if(errno != 0){
+                spdlog::error("Could not read map folder {}", mapFolder);
                 throw std::error_code(errno, std::generic_category());
             }
-            ent = readdir(dir);
-            if(ent == NULL){
-                throw std::error_code(errno, std::generic_category());
+            else{
+                throw std::runtime_error("Not enough maps in map folder");
             }
         }
         if(ent->d_type == DT_REG){
@@ -132,6 +134,9 @@ server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, 
             }
             lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
             this->lobbies[i] = l;
+        }
+        else{
+            i--;
         }
     }
     closedir(dir);
