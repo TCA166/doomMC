@@ -27,7 +27,9 @@ void* lobby::monitorPlayers(lobby* thisLobby){
             for(int i = 0; i < activity; i++){
                 if(events[i].data.fd == thisLobby->epollPipe[0]){
                     char buf[1];
-                    read(thisLobby->epollPipe[0], buf, 1);
+                    if(read(thisLobby->epollPipe[0], buf, 1) != 1){
+                        throw std::error_code(errno, std::generic_category());
+                    }
                     continue;
                 }
                 player* p = (player*)events[i].data.ptr;
@@ -124,7 +126,9 @@ void lobby::addPlayer(player* p){
                 perror("epoll_ctl");
                 throw std::error_code(errno, std::generic_category());
             }
-            write(this->epollPipe[1], "\0", 1);
+            if(write(this->epollPipe[1], "\0", 1) != 1){
+                throw std::error_code(errno, std::generic_category());
+            }
             p->startPlay(i, this);
             break;
         }

@@ -7,7 +7,7 @@ debug: CFLAGS+=-Werror -g
 debug: all
 
 fast: CFLAGS+=-Ofast 
-fast: clean all
+fast: all
 
 server: src/main.cpp complete.o
 	g++ $(CFLAGS) -o server src/main.cpp complete.o -lspdlog -lfmt -lpthread -lz

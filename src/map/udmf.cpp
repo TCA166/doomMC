@@ -189,7 +189,9 @@ udmf::udmf(const char* path){
         contentsSize = ftell(f);
         fseek(f, 0, SEEK_SET);
         contents = (char*)malloc(contentsSize + 1);
-        fread(contents, 1, contentsSize, f);
+        if(fread(contents, 1, contentsSize, f) < contentsSize){
+            throw std::error_code(errno, std::generic_category());
+        }
         contents[contentsSize] = '\0';
         fclose(f);
     }

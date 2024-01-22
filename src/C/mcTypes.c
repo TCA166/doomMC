@@ -10,8 +10,8 @@
 
 //If index is null then changes index to point to a newly created int with value of 0
 #define getIndex(index) \
+    int locIndex = 0; \
     if(index == NULL){ \
-        int locIndex = 0; \
         index = &locIndex; \
     }
 

@@ -32,7 +32,9 @@ static cJSON* readJson(const char* filename){
     long statusSize = ftell(statusFile);
     rewind(statusFile);
     char* statusJson = (char*)calloc(statusSize + 1, sizeof(char));
-    fread(statusJson, 1, statusSize, statusFile);
+    if(fread(statusJson, 1, statusSize, statusFile) < (size_t)statusSize){
+        throw std::error_code(errno, std::generic_category());
+    }
     fclose(statusFile);
     cJSON* status = cJSON_ParseWithLength(statusJson, statusSize);
     if(status == NULL){
@@ -52,7 +54,9 @@ static nbt_node* readNBT(const char* filename){
     size_t codecSize = ftell(codecFile);
     rewind(codecFile);
     byte* codecData = (byte*)malloc(codecSize);
-    fread(codecData, 1, codecSize, codecFile);
+    if(fread(codecData, 1, codecSize, codecFile) < codecSize){
+        throw std::error_code(errno, std::generic_category());
+    }
     fclose(codecFile);
     nbt_node* codec = nbt_parse(codecData, codecSize);
     if(codec == NULL){
@@ -131,6 +135,9 @@ server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, 
             }
             else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
                 newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
+            }
+            else{
+                continue;
             }
             lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
             this->lobbies[i] = l;
