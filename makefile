@@ -60,7 +60,6 @@ clean:
 	rm -f *.o
 	rm -f cNBT/*.o
 	rm -f cJSON/*.o
-	rm -f server
 
 check: debug
 	checkmk tests/C/mcTypesTests.check > tests/C/cTestsRunner.c

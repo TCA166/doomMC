@@ -30,13 +30,18 @@ static byteArray readSocket(int socketFd){
     int nRead = 0;
     //While we have't read the entire packet
     while(nRead < size){
+        //FIXME possible infinite loop in case size isn't actually sent
         //Read the rest of the packet
         int r = read(socketFd, input + nRead, size - nRead);
-        if(r == 0 || (r == -1 && (errno != EAGAIN && errno != EWOULDBLOCK))){
-            free(input);
-            return result;
+        if(r < 1){
+            if(r == 0 || (errno != EAGAIN && errno != EWOULDBLOCK)){
+                free(input);
+                return result;
+            }
         }
-        nRead += r;
+        else{
+            nRead += r;
+        }        
     }
     result.bytes = input;
     return result;

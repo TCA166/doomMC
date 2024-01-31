@@ -200,6 +200,7 @@ int server::run(){
                 client* c = (client*)events[i].data.ptr;
                 packet p = c->getPacket();
                 if(packetNull(p)){
+                    spdlog::warn("Couldn't read packet from client {}({}). Reason:{}", c->getUUID(), c->getIndex(), strerror(errno));
                     continue;
                 }
                 c->handlePacket(&p);
