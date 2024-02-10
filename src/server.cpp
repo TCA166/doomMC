@@ -128,16 +128,28 @@ server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, 
         }
         if(ent->d_type == DT_REG){
             spdlog::debug("Found map {}", ent->d_name);
-            map* newMap;
-            //check if the extension is .mca
-            if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mca") == 0){
-                newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str(), version);
-            }
-            else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
-                newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
-            }
-            else{
-                continue;
+            map* newMap = NULL;
+            while(newMap == NULL){
+                //check if the extension is .mca
+                if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".mca") == 0){
+                    newMap = new minecraftRegion((mapFolder + std::string(ent->d_name)).c_str(), version);
+                }
+                //else if(strcmp(ent->d_name + strlen(ent->d_name) - 4, ".udm") == 0){
+                //    newMap = new udmf((mapFolder + std::string(ent->d_name)).c_str());
+                //}
+                else{
+                    ent = readdir(dir);
+                    if(ent == NULL){
+                        if(errno != 0){
+                            spdlog::error("Could not read map folder {}", mapFolder);
+                            throw std::error_code(errno, std::generic_category());
+                        }
+                        else{
+                            throw std::runtime_error("Not enough maps in map folder");
+                        }
+                    }
+                    continue;
+                }
             }
             lobby* l = new lobby(maxPlayers, &this->registryCodec, newMap);
             this->lobbies[i] = l;

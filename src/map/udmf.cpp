@@ -67,7 +67,7 @@ typedef struct{
 //64 units = 1 block
 #define SCALE 64
 
-void addVertexVal(vertex* vertex, const char* key, const char* val){
+static void addVertexVal(vertex* vertex, const char* key, const char* val){
     if(strncmp(key, "x", 1) == 0){
         vertex->x = (int)atof(val);
     }
@@ -76,7 +76,7 @@ void addVertexVal(vertex* vertex, const char* key, const char* val){
     }
 }
 
-void addSidedefVal(sidedef* sidedef, const char* key, const char* val){
+static void addSidedefVal(sidedef* sidedef, const char* key, const char* val){
     if(strncmp(key, "id", 2) == 0){
         sidedef->id = atoi(val);
     }
@@ -91,7 +91,7 @@ void addSidedefVal(sidedef* sidedef, const char* key, const char* val){
     }
 }
 
-void addSectorVal(mapSector* sector, const char* key, const char* val){
+static void addSectorVal(mapSector* sector, const char* key, const char* val){
     if(strncmp(key, "heightfloor", 11) == 0){
         sector->heightfloor = atoi(val);
     }
@@ -100,7 +100,7 @@ void addSectorVal(mapSector* sector, const char* key, const char* val){
     }
 }
 
-void addLinedefVal(linedef* linedef, const char* key, const char* val){
+static void addLinedefVal(linedef* linedef, const char* key, const char* val){
     if(strncmp(key, "id", 2) == 0){
         linedef->id = atoi(val);
     }
@@ -118,7 +118,7 @@ void addLinedefVal(linedef* linedef, const char* key, const char* val){
     }
 }
 
-void addThingVal(thing* thing, const char* key, const char* val){
+static void addThingVal(thing* thing, const char* key, const char* val){
     if(strncmp(key, "id", 2) == 0){
         thing->id = atoi(val);
     }
@@ -137,6 +137,26 @@ void addThingVal(thing* thing, const char* key, const char* val){
     else if(strncmp(key, "type", 4) == 0){
         thing->type = atoi(val);
     }
+}
+
+static void addSectorToMap(int32_t*** blocks, vertex lb, vertex rb, vertex lt, vertex rt, mapSector* sector){
+    for(int x = lb.x; x <= rb.x; x++){
+        for(int y = lb.y; y <= lt.y; y++){
+            blocks[x][sector->heightfloor][y] = 1;
+        }
+        for(int y = lt.y; y <= rt.y; y++){
+            blocks[x][sector->heightceiling][y] = 1;
+        }
+    }
+    for(int y = lb.y; y <= lt.y; y++){
+        blocks[lb.x][sector->heightfloor][y] = 1;
+        blocks[rb.x][sector->heightfloor][y] = 1;
+    }
+    for(int y = lt.y; y <= rt.y; y++){
+        blocks[lb.x][sector->heightceiling][y] = 1;
+        blocks[rb.x][sector->heightceiling][y] = 1;
+    }
+    
 }
 
 typedef void (*addVal)(void*, const char*, const char*);
@@ -173,6 +193,7 @@ void parseBlock(void* structure, char* block, addVal func){
 }
 
 udmf::udmf(const char* path){
+    //TODO finish. Is this conversion even feasible? Seems not to be as of right now
     /*
     We going really old school here.
     Regex wasn't fast enough I think, so strtok_r it is.
@@ -377,12 +398,8 @@ udmf::udmf(const char* path){
             vertex* end = vertices + linedef->end; //line end
             //get the front sector
             mapSector* front = sectors + (sidedefs + linedef->sidefront)->sector; //front sector
-            this->blocks[start->x][front->heightfloor][start->y] = 1;
             int wallStart = front->heightfloor; //y index of the lowest row of blocks of the wall
             int wallEnd = front->heightceiling; //y index of the highest row of blocks of the wall
-            if(front->heightceiling != front->heightfloor){    
-                this->blocks[start->x][front->heightceiling][start->y] = 1;
-            }
             //get the back sector
             if(linedef->sideback >= 0){
                 mapSector* end = sectors + (sidedefs + linedef->sideback)->sector;
@@ -392,11 +409,6 @@ udmf::udmf(const char* path){
                 }
                 if(end->heightceiling > wallEnd){
                     wallEnd = end->heightceiling;
-                }
-                
-                this->blocks[start->x][end->heightfloor][start->y] = 1;
-                if(end->heightceiling != end->heightfloor){
-                    this->blocks[start->x][end->heightceiling][start->y] = 1;
                 }
             }
             //https://en.wikipedia.org/wiki/Bresenham's_line_algorithm
@@ -414,6 +426,51 @@ udmf::udmf(const char* path){
                 }
                 D = D + 2 * dy;
             }
+        }
+        //foreach sector
+        for(size_t i = 0; i < sectorCount; i++){
+            //get the vertices of the sector
+            vertex* lb = NULL;
+            vertex* rb = NULL;
+            vertex* lt = NULL;
+            vertex* rt = NULL;
+            for(size_t j = 0; j < linedefCount; j++){
+                linedef* linedef = linedefs + j;
+                sidedef* front = sidedefs + linedef->sidefront;
+                sidedef* back = sidedefs + linedef->sideback;
+                //spdlog::debug("Linedef {} has sidedefs:{} {}", j, linedef->sidefront, linedef->sideback);
+                if(front->sector == i || (linedef->sideback != -1 && back->sector == i)){
+                    //spdlog::debug("Sector {} has linedef {}", i, j);
+                    vertex* start = vertices + linedef->start;
+                    vertex* end = vertices + linedef->end;
+                    if(lb == NULL){
+                        lb = start;
+                        rb = end;
+                    }
+                    else if(lb->x > start->x){
+                        lb = start;
+                    }
+                    else if(rb->x < end->x){
+                        rb = end;
+                    }
+                    if(lt == NULL){
+                        lt = start;
+                        rt = end;
+                    }
+                    else if(lt->y > start->y){
+                        lt = start; 
+                    }
+                    else if(rt->y < end->y){
+                        rt = end;
+                    }
+                }
+            }
+            if(lb == NULL || rb == NULL || lt == NULL || rt == NULL){
+                spdlog::warn("Sector {} has missing vertices", i);
+                continue;
+            }
+            //add the sector to the map
+            addSectorToMap(this->blocks, *lb, *rb, *lt, *rt, sectors + i);
         }
         free(linedefs);
         free(vertices);

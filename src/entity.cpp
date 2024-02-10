@@ -23,11 +23,15 @@ int32_t entity::getEid() const{
 
 int entity::getBlock(int x, int y, int z) const{
     int block = 0;
+    int absY = (int)this->y + y;
+    if(absY < 0){
+        throw std::invalid_argument("Block coordinates out of bounds");
+    }
     try{
-        block = this->currentLobby->getMap()->getBlock((uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z));
+        block = this->currentLobby->getMap()->getBlock((uint32_t)(this->x + x), (uint32_t)(absY), (uint32_t)(this->z + z));
     }
     catch(const std::invalid_argument& e){
-        spdlog::error("Could not get block at {},{},{}: {}", (uint32_t)(this->x + x), (uint32_t)(this->y + y), (uint32_t)(this->z + z), e.what());
+        spdlog::error("Could not get block at {},{},{}: {}", (uint32_t)(this->x + x), (uint32_t)(absY), (uint32_t)(this->z + z), e.what());
     }
     return block;
 }

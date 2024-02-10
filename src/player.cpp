@@ -22,6 +22,7 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->health = 20;
     this->teleportId = 0;
     this->lastKeepAlive = time(NULL);
+    this->hasSpawned = false;
 }
 
 void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
@@ -295,6 +296,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setHealth(20);
     this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
     this->currentLobby->spawnPlayer(this);
+    this->hasSpawned = true;
     spdlog::info("Player {} joined lobby", this->username);
 }
 
@@ -306,6 +308,9 @@ int player::handlePacket(packet* p){
     //TODO sync and expand
     if(this->state != PLAY_STATE){
         return -1;
+    }
+    if(!this->hasSpawned){
+        return 1;
     }
     int offset = 0;
     switch(p->packetId){

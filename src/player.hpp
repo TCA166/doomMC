@@ -140,6 +140,7 @@ class player : public client, public entity{
         void setCenterChunk(int chunkX, int chunkZ);
         unsigned long teleportId; //last teleport id
         time_t lastKeepAlive;
+        bool hasSpawned; //whether or not the player has spawned and the map has been loaded
 };
 
 #endif

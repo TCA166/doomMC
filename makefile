@@ -27,10 +27,16 @@ player.o: src/player.cpp
 client.o: src/client.cpp
 	g++ $(CFLAGS) -c src/client.cpp
 
-maps.o : src/map/map.cpp src/map/udmf.cpp src/map/mcr.cpp
+map.o: src/map/map.cpp
 	g++ $(CFLAGS) -c src/map/map.cpp
+
+udmf.o: src/map/udmf.cpp
 	g++ $(CFLAGS) -c src/map/udmf.cpp
+
+mcr.o: src/map/mcr.cpp
 	g++ $(CFLAGS) -c src/map/mcr.cpp
+
+maps.o : map.o udmf.o mcr.o
 	ld -relocatable map.o udmf.o mcr.o -o maps.o
 
 mcTypes.o: src/C/mcTypes.c
