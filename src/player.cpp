@@ -304,13 +304,13 @@ static inline bool verifyOnGround(player* p){
     return p->getBlock(0, -1, 0) != 0;
 }
 
-int player::handlePacket(packet* p){
+void player::handlePacket(packet* p){
     //TODO sync and expand
     if(this->state != PLAY_STATE){
-        return -1;
+        throw std::invalid_argument("Player is not in play state");
     }
     if(!this->hasSpawned){
-        return 1;
+        return;
     }
     int offset = 0;
     switch(p->packetId){
@@ -396,7 +396,6 @@ int player::handlePacket(packet* p){
             break;
         }
     }
-    return 1;
 }
 
 void player::sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ){

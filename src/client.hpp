@@ -78,12 +78,11 @@ class client{
         /*!
          @brief Handles a provided packet in reference to this instance
          @param p the packet to handle
-         @return 1 if the packet was handled successfully, 0 on EOF, -1 if an error occurred
         */
-        virtual int handlePacket(packet* p);
+        virtual void handlePacket(packet* p);
         /*!
         @brief Gets the packet from the associated file descriptor
-        @return the packet or a null packet if a packet could not be read
+        @return the packet
         */
         packet getPacket();
         /*!
@@ -91,9 +90,8 @@ class client{
          @param data the data to send
          @param length the length of the data
          @param packetId the id of the packet
-         @return the number of bytes sent, 0 on EOF or -1 if an error occurred
         */
-        int send(byte* data, int length, byte packetId);
+        void send(byte* data, int length, byte packetId);
         /*! 
          @brief Disconnects the client and sets the fd to -1
         */

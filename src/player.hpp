@@ -20,7 +20,7 @@ class player : public client, public entity{
          @param p the packet to handle
          @return 1 if the packet was handled successfully, 0 on EOF, -1 if an error occurred
         */
-        int handlePacket(packet* p);
+        void handlePacket(packet* p);
         /*!
          @brief Sets the weapons and ammo of the player, and sends the set inventory packet
          @param weapons the weapons to set

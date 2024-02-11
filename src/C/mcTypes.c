@@ -43,6 +43,29 @@ inline static float swapFloat(float val){
     return retVal;
 }
 
+inline static __uint128_t swap128(__uint128_t val){
+    __uint128_t retVal = 0;
+    byte* restrict src = (byte*)&val;
+    byte* restrict dest = (byte*)&retVal;
+    dest[0] = src[15];
+    dest[1] = src[14];
+    dest[2] = src[13];
+    dest[3] = src[12];
+    dest[4] = src[11];
+    dest[5] = src[10];
+    dest[6] = src[9];
+    dest[7] = src[8];
+    dest[8] = src[7];
+    dest[9] = src[6];
+    dest[10] = src[5];
+    dest[11] = src[4];
+    dest[12] = src[3];
+    dest[13] = src[2];
+    dest[14] = src[1];
+    dest[15] = src[0];
+    return retVal;
+}
+
 //Gets the size of the nbt tag in buffer, assumes the nbt tag is of the given type
 static inline size_t tagSize(const byte* buff, byte type);
 
@@ -185,9 +208,10 @@ int32_t readBigEndianInt(const byte* buff, int* index){
 
 UUID_t readUUID(const byte* buff, int* index){
     getIndex(index)
-    UUID_t result = *(UUID_t*)(buff + *index);
+    UUID_t result;
+    memcpy(&result, buff + *index, sizeof(UUID_t));
     *index += sizeof(UUID_t);
-    return result;
+    return swap128(result);
 }
 
 double readDouble(const byte* buff, int* index){

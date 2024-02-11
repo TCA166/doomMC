@@ -16,26 +16,19 @@ client::client(server* server, int fd, state_t state, char* username, int compre
     this->index = index;
 }
 
-client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol){
+client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol) : client(){
     this->serv = server;
     this->fd = fd;
     this->state = state;
     this->username = username;
     this->compression = compression;
     this->protocol = protocol;
-    this->index = -1;
-    this->uuid = 0;
 }
 
-client::client(server* server, int fd, int index){
+client::client(server* server, int fd, int index) : client(){
     this->serv = server;
     this->fd = fd;
-    this->state = NONE_STATE;
-    this->username = NULL;
-    this->compression = NO_COMPRESSION;
-    this->protocol = 0;
     this->index = index;
-    this->uuid = 0;
 }
 
 client::client(){
@@ -44,6 +37,8 @@ client::client(){
     this->username = NULL;
     this->compression = NO_COMPRESSION;
     this->protocol = 0;
+    this->index = -1;
+    this->uuid = 0;
 }
 
 client::~client(){
@@ -69,27 +64,38 @@ void client::disconnect(){
 }
 
 packet client::getPacket(){
-    return readPacket(this->fd, this->compression);
+    packet p = readPacket(this->fd, this->compression);
+    if(packetNull(p)){
+        if(errno == EPIPE){
+            this->disconnect();
+        }
+        else{
+            throw std::error_code(errno, std::generic_category());
+        }
+    }
+    return p;
 }
 
-int client::send(byte* data, int length, byte packetId){
+void client::send(byte* data, int length, byte packetId){
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
     if(res == -1){
         spdlog::warn("Sending packet {} to {} failed", packetId, this->uuid);
         if(errno == EPIPE){
             this->disconnect();
         }
+        else{
+            throw std::error_code(errno, std::generic_category());
+        }
     }
-    return res;
 }
 
-int client::handlePacket(packet* p){
+void client::handlePacket(packet* p){
     spdlog::debug("Handling packet {} from client {}", p->packetId, this->uuid);
     int offset = 0;
     switch(this->state){
         case NONE_STATE:{
             if(p->packetId != HANDSHAKE){
-                return 0;
+                return;
             }
             this->protocol = readVarInt(p->data, &offset);
             int32_t serverAddressLength = readVarInt(p->data, &offset);
@@ -117,11 +123,16 @@ int client::handlePacket(packet* p){
                 return this->send((byte*)&val, sizeof(val), PING_RESPONSE);
             }
             else{
-                return 0;
+                return;
             }
         }
         case LOGIN_STATE:{
             if(p->packetId == LOGIN_START){
+                {
+                    byte data[MAX_VAR_INT];
+                    size_t offset = writeVarInt(data, this->compression);
+                    this->send(data, offset, SET_COMPRESSION);
+                }    
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
                 this->uuid = readUUID(p->data, &offset);
@@ -145,7 +156,7 @@ int client::handlePacket(packet* p){
                 this->send(NULL, 0, FINISH_CONFIGURATION);
             }
             else{
-                return 0;
+                return;
             }
             break;
         }
@@ -157,10 +168,9 @@ int client::handlePacket(packet* p){
             break;
         }
         default:{
-            return 0;
+            return;
         }
     }
-    return 1;
 }
 
 int client::getCompression() const{
@@ -181,7 +191,7 @@ void client::setUsername(char* username) {
 
 player* client::toPlayer(){
     int newSocket = dup(this->fd);
-    char* username = (char*)malloc(strlen(this->username) + 1);
+    char* username = new char[strlen(this->username) + 1];
     strcpy(username, this->username);
     player* p = new player(this->serv, newSocket, this->state, username, this->compression, this->protocol, this->uuid);
     return p;
@@ -247,7 +257,7 @@ packet client::getPacket(int timeout){
     while(packetNull(p)){
         if((double)(clock() - begin) / CLOCKS_PER_SEC >= timeout){
             spdlog::debug("Timed out waiting for packet");
-            break;
+            throw std::runtime_error("Timed out waiting for packet");
         }
         p = this->getPacket();
     }
