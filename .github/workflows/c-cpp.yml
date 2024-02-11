@@ -19,6 +19,8 @@ jobs:
         git submodule update --remote --recursive
     - name: configure
       run: make requirements
+    - name: ls
+      run: ls
     - name: make server
       run: make server
     - name: make check
