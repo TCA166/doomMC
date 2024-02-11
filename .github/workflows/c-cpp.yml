@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Git Submodule Update
+      run: git submodule update --init --force --remote
+    - name: configure
+      run: make requirements
+    - name: make server
+      run: make server
+    - name: make check
+      run: make check
