@@ -13,6 +13,10 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: Git Submodule Update
+      run: |
+        git pull --recurse-submodules
+        git submodule update --remote --recursive
     - name: configure
       run: make requirements
     - name: make server
