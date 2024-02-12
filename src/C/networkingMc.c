@@ -5,8 +5,14 @@
 
 #include <zlib.h>
 
+#include <curl/curl.h>
+#include "../../cJSON/cJSON.h"
+
 #include "networkingMc.h"
 #include "mcTypes.h"
+
+#define API_PROFILE_URL "https://api.mojang.com/users/profiles/minecraft/"
+#define API_SKIN_URL "https://sessionserver.mojang.com/session/minecraft/profile/"
 
 static byteArray readSocket(int socketFd){
     byteArray result = nullByteArray;
@@ -144,4 +150,97 @@ ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int c
         free(packet);
         return res;
     }
+}
+
+struct string {
+    char *ptr;
+    size_t len;
+};
+
+static size_t writeToString(void *ptr, size_t size, size_t nmemb, struct string *s){
+    size_t newLen = s->len + size*nmemb;
+    s->ptr = realloc(s->ptr, newLen + 1);
+    if(s->ptr == NULL){
+        return 0;
+    }
+    memcpy(s->ptr + s->len, ptr, size*nmemb);
+    s->ptr[newLen] = '\0';
+    s->len = newLen;
+    return size*nmemb;
+}
+
+char* getPlayerSkin(const char* username){
+    struct string res = {NULL, 0};
+    CURL* curl = curl_easy_init();
+    if(curl == NULL){
+        return NULL;
+    }
+    {
+        char* url = calloc(sizeof(API_PROFILE_URL) + strlen(username) + 1, sizeof(char));
+        strcpy(url, API_PROFILE_URL);
+        strcat(url, username);
+        curl_easy_setopt(curl, CURLOPT_URL, url);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res);
+        if(curl_easy_perform(curl) != CURLE_OK){
+            free(url);
+            curl_easy_cleanup(curl);
+            return NULL;
+        }
+        free(url);
+    }
+    cJSON* json = cJSON_Parse(res.ptr);
+    free(res.ptr);
+    res.ptr = NULL;
+    if(json == NULL){
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    cJSON* id = cJSON_GetObjectItem(json, "id");
+    if(id == NULL){
+        cJSON_Delete(json);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    {
+        char* skinUrl = calloc(sizeof(API_SKIN_URL) + strlen(id->valuestring) + 1, sizeof(char));
+        strcpy(skinUrl, API_SKIN_URL);
+        strcat(skinUrl, id->valuestring);
+        cJSON_Delete(json);
+        curl_easy_setopt(curl, CURLOPT_URL, skinUrl);
+        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
+        curl_easy_setopt(curl, CURLOPT_WRITEDATA, &res);
+        res.len = 0;
+        if(curl_easy_perform(curl) != CURLE_OK){
+            free(skinUrl);
+            curl_easy_cleanup(curl);
+            return NULL;
+        }
+        free(skinUrl);
+    }
+    cJSON* skinJson = cJSON_Parse(res.ptr);
+    free(res.ptr);
+    cJSON* properties = cJSON_GetObjectItem(skinJson, "properties");
+    if(properties == NULL){
+        cJSON_Delete(skinJson);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    cJSON* skin = cJSON_GetArrayItem(properties, 0);
+    if(skin == NULL){
+        cJSON_Delete(skinJson);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    cJSON* value = cJSON_GetObjectItem(skin, "value");
+    if(value == NULL){
+        cJSON_Delete(skinJson);
+        curl_easy_cleanup(curl);
+        return NULL;
+    }
+    char* skinData = calloc(strlen(value->valuestring) + 1, sizeof(char));
+    strcpy(skinData, value->valuestring);
+    cJSON_Delete(skinJson);
+    curl_easy_cleanup(curl);
+    return skinData;
 }

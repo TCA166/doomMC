@@ -18,7 +18,6 @@ class player : public client, public entity{
         /*!
          @brief Handles a provided packet in reference to this instance
          @param p the packet to handle
-         @return 1 if the packet was handled successfully, 0 on EOF, -1 if an error occurred
         */
         void handlePacket(packet* p);
         /*!
@@ -28,7 +27,7 @@ class player : public client, public entity{
         */
         void setWeapons(const struct weapon* weapons, const struct ammo* ammo);
         /*!
-         @brief Sets the health of the player and sends the approriate packet
+         @brief Sets the health of the player and sends the appropriate packet
          @param health the health of the player
         */
         void setHealth(int health);
@@ -130,6 +129,7 @@ class player : public client, public entity{
         */
         bool isOnGround() const;
         UUID_t getUUID() const;
+        const char* getSkin() const;
     private:
         bool onGround;
         int health;
@@ -141,6 +141,7 @@ class player : public client, public entity{
         unsigned long teleportId; //last teleport id
         time_t lastKeepAlive;
         bool hasSpawned; //whether or not the player has spawned and the map has been loaded
+        const char* skin;
 };
 
 #endif

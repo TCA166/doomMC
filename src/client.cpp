@@ -77,6 +77,7 @@ packet client::getPacket(){
 }
 
 void client::send(byte* data, int length, byte packetId){
+    //spdlog::debug("Sending packet {} to client {}", packetId, this->uuid);
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
     if(res == -1){
         spdlog::warn("Sending packet {} to {} failed", packetId, this->uuid);
@@ -115,8 +116,9 @@ void client::handlePacket(packet* p){
                 byte* data = new byte[sizeJson + 1 + MAX_VAR_INT];
                 size_t dataSz = writeString(data, json, sizeJson);
                 free(json);
-                return this->send(data, dataSz, STATUS_RESPONSE);
+                this->send(data, dataSz, STATUS_RESPONSE);
                 delete[] data;
+                return;
             }
             else if(p->packetId == PING_REQUEST){
                 int64_t val = readLong(p->data, &offset);

@@ -11,6 +11,7 @@
 
 typedef uint8_t byte;
 
+//TODO this type is gcc exclusive, find a way to make it work with other compilers
 //Type for Minecraft UUID which should be unsigned int128
 typedef __uint128_t UUID_t;
 

@@ -43,4 +43,11 @@ packet readPacket(int socketFd, int compression);
 */
 ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int compression);
 
+/*!
+ @brief Gets the player textures from the Mojang API
+ @param username the player's username
+ @return the player's skin
+*/
+char* getPlayerSkin(const char* username);
+
 #endif

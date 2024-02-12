@@ -23,6 +23,7 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->teleportId = 0;
     this->lastKeepAlive = time(NULL);
     this->hasSpawned = false;
+    this->skin = getPlayerSkin(username);
 }
 
 void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
@@ -211,7 +212,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     {//update player list
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         unsigned int playerNum = this->currentLobby->getPlayerCount();
-        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17) * playerNum];
+        byte* data = (byte*)malloc(1 + MAX_VAR_INT + sizeof(UUID_t) + (MAX_VAR_INT * 3) + 25);
         size_t offset = 0;
         data[offset++] = flag;
         offset += writeVarInt(data + offset, playerNum);
@@ -220,13 +221,25 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
             *(data + offset) = p->getUUID();
             offset += sizeof(UUID_t);
             offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
-            offset += writeVarInt(data + offset, 0);
+            const char* skin = p->getSkin();
+            size_t skinSize = strlen(skin);
+            if(skin != NULL){
+                offset += writeVarInt(data + offset, 1);
+                offset += writeString(data + offset, "textures", 8);
+                data = (byte*)realloc(data, offset + skinSize + (MAX_VAR_INT * 6) + 1 + sizeof(UUID_t));
+                offset += writeString(data + offset, skin, skinSize);
+                data[offset++] = false;
+            }
+            else{
+                data = (byte*)realloc(data, offset + (MAX_VAR_INT * 3) + 1 + sizeof(UUID_t));
+                offset += writeVarInt(data + offset, 0);
+            }
             offset += writeVarInt(data + offset, 0);
             data[offset++] = true;
             offset += writeVarInt(data + offset, p->getPing());
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
-        delete[] data;
+        free(data);
     }
     const map* m = this->currentLobby->getMap();
     position spawn = m->getSpawn();
@@ -488,7 +501,7 @@ void player::disconnect(){
 
 player::~player(){
     //FIXME invalid pointer exception after this was called when two players were on the server
-    spdlog::debug("Deleting player {}({})", this->getUUID(), this->index);
+    free((char*)this->skin);
 }
 
 void player::keepAlive(){
@@ -560,14 +573,28 @@ void player::spawnPlayer(const player* p){
     spdlog::debug("Spawning player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->getUUID(), this->getIndex());
     {
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
-        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17)];
+        size_t skinSize = 0;
+        if(p->getSkin() != NULL){
+            skinSize = strlen(p->getSkin());
+        }
+        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17 + skinSize)];
         size_t offset = 0;
         data[offset++] = flag;
         offset += writeVarInt(data + offset, 1);
-        *(data + offset) = p->getUUID();
+        UUID_t uid = p->getUUID();
+        memcpy(data + offset, &uid, sizeof(UUID_t));
         offset += sizeof(UUID_t);
         offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
-        offset += writeVarInt(data + offset, 0);
+        const char* skin = p->getSkin();
+        if(skin != NULL){
+            offset += writeVarInt(data + offset, 1);
+            offset += writeString(data + offset, "textures", 8);
+            offset += writeString(data + offset, skin, skinSize);
+            data[offset++] = false;
+        }
+        else{
+            offset += writeVarInt(data + offset, 0);
+        }
         offset += writeVarInt(data + offset, 0);
         data[offset++] = true;
         offset += writeVarInt(data + offset, p->getPing());
@@ -589,6 +616,7 @@ void player::spawnPlayer(const player* p){
         data[offset++] = toAngle(p->getYaw());
         this->send(data, offset, SPAWN_PLAYER);
     }
+    this->spawnEntity(p);
 }
 
 void player::removeEntity(const entity* ent){
@@ -600,7 +628,7 @@ void player::removeEntity(const entity* ent){
 
 void player::removePlayer(const player* p){
     //FIXME doesn't update player list(possible UUID collision)
-    spdlog::debug("Removing player {}({}) for player{}({})", p->getUUID(), p->getIndex(), this->getUUID(), this->getIndex());
+    spdlog::debug("Removing player {}({}) for player {}({})", p->getUUID(), p->getIndex(), this->getUUID(), this->getIndex());
     {
         byte data[MAX_VAR_INT + sizeof(UUID_t)];
         size_t offset = writeVarInt(data, 1);
@@ -623,4 +651,8 @@ void player::removePlayer(const player* p){
 
 bool player::isOnGround() const{
     return this->onGround;
+}
+
+const char* player::getSkin() const{
+    return this->skin;
 }
