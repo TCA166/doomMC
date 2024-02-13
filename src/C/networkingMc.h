@@ -48,6 +48,6 @@ ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int c
  @param username the player's username
  @return the player's skin
 */
-char* getPlayerSkin(const char* username);
+skin_t getPlayerSkin(const char* username);
 
 #endif

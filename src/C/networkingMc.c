@@ -169,11 +169,11 @@ static size_t writeToString(void *ptr, size_t size, size_t nmemb, struct string 
     return size*nmemb;
 }
 
-char* getPlayerSkin(const char* username){
+skin_t getPlayerSkin(const char* username){
     struct string res = {NULL, 0};
     CURL* curl = curl_easy_init();
     if(curl == NULL){
-        return NULL;
+        return emptySkin;
     }
     {
         char* url = calloc(sizeof(API_PROFILE_URL) + strlen(username) + 1, sizeof(char));
@@ -185,7 +185,7 @@ char* getPlayerSkin(const char* username){
         if(curl_easy_perform(curl) != CURLE_OK){
             free(url);
             curl_easy_cleanup(curl);
-            return NULL;
+            return emptySkin;
         }
         free(url);
     }
@@ -194,18 +194,19 @@ char* getPlayerSkin(const char* username){
     res.ptr = NULL;
     if(json == NULL){
         curl_easy_cleanup(curl);
-        return NULL;
+        return emptySkin;
     }
     cJSON* id = cJSON_GetObjectItem(json, "id");
     if(id == NULL){
         cJSON_Delete(json);
         curl_easy_cleanup(curl);
-        return NULL;
+        return emptySkin;
     }
     {
-        char* skinUrl = calloc(sizeof(API_SKIN_URL) + strlen(id->valuestring) + 1, sizeof(char));
+        char* skinUrl = calloc(sizeof(API_SKIN_URL) + strlen(id->valuestring) + 16, sizeof(char));
         strcpy(skinUrl, API_SKIN_URL);
         strcat(skinUrl, id->valuestring);
+        strcat(skinUrl, "?unsigned=false");
         cJSON_Delete(json);
         curl_easy_setopt(curl, CURLOPT_URL, skinUrl);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, writeToString);
@@ -214,7 +215,7 @@ char* getPlayerSkin(const char* username){
         if(curl_easy_perform(curl) != CURLE_OK){
             free(skinUrl);
             curl_easy_cleanup(curl);
-            return NULL;
+            return emptySkin;
         }
         free(skinUrl);
     }
@@ -224,23 +225,30 @@ char* getPlayerSkin(const char* username){
     if(properties == NULL){
         cJSON_Delete(skinJson);
         curl_easy_cleanup(curl);
-        return NULL;
+        return emptySkin;
     }
     cJSON* skin = cJSON_GetArrayItem(properties, 0);
     if(skin == NULL){
         cJSON_Delete(skinJson);
         curl_easy_cleanup(curl);
-        return NULL;
+        return emptySkin;
     }
     cJSON* value = cJSON_GetObjectItem(skin, "value");
     if(value == NULL){
         cJSON_Delete(skinJson);
         curl_easy_cleanup(curl);
-        return NULL;
+        return emptySkin;
     }
     char* skinData = calloc(strlen(value->valuestring) + 1, sizeof(char));
     strcpy(skinData, value->valuestring);
+    skin_t result = {NULL, skinData};
+    cJSON* signature = cJSON_GetObjectItem(skin, "signature");
+    if(signature != NULL){
+        char* signatureData = calloc(strlen(signature->valuestring) + 1, sizeof(char));
+        strcpy(signatureData, signature->valuestring);
+        result.signature = signatureData;
+    }
     cJSON_Delete(skinJson);
     curl_easy_cleanup(curl);
-    return skinData;
+    return result;
 }

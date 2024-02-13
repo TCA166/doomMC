@@ -24,6 +24,9 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     this->lastKeepAlive = time(NULL);
     this->hasSpawned = false;
     this->skin = getPlayerSkin(username);
+    if(this->skin.signature == NULL){
+        spdlog::warn("Failed to get skin signature for player {}", username);
+    }
 }
 
 void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
@@ -211,24 +214,30 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     }
     {//update player list
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
-        unsigned int playerNum = this->currentLobby->getPlayerCount();
         byte* data = (byte*)malloc(1 + MAX_VAR_INT + sizeof(UUID_t) + (MAX_VAR_INT * 3) + 25);
         size_t offset = 0;
         data[offset++] = flag;
-        offset += writeVarInt(data + offset, playerNum);
-        for(unsigned int i = 0; i < playerNum; i++){
+        offset += writeVarInt(data + offset, this->currentLobby->getPlayerCount());
+        for(unsigned int i = 0; i < this->currentLobby->getMaxPlayers(); i++){
             const player* p = this->currentLobby->getPlayer(i);
+            if(p == NULL){
+                continue;
+            }
             *(data + offset) = p->getUUID();
             offset += sizeof(UUID_t);
             offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
-            const char* skin = p->getSkin();
-            size_t skinSize = strlen(skin);
-            if(skin != NULL){
+            skin_t skin = p->getSkin();
+            size_t skinSize = strlen(skin.value);
+            size_t signatureSize = strlen(skin.signature);
+            if(skin.value != NULL){
                 offset += writeVarInt(data + offset, 1);
                 offset += writeString(data + offset, "textures", 8);
-                data = (byte*)realloc(data, offset + skinSize + (MAX_VAR_INT * 6) + 1 + sizeof(UUID_t));
-                offset += writeString(data + offset, skin, skinSize);
-                data[offset++] = false;
+                data = (byte*)realloc(data, offset + skinSize + signatureSize + (MAX_VAR_INT * 6) + 1 + sizeof(UUID_t));
+                offset += writeString(data + offset, skin.value, skinSize);
+                data[offset++] = skin.signature != NULL;
+                if(skin.signature != NULL){
+                    offset += writeString(data + offset, skin.signature, signatureSize);
+                }
             }
             else{
                 data = (byte*)realloc(data, offset + (MAX_VAR_INT * 3) + 1 + sizeof(UUID_t));
@@ -240,6 +249,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         }
         this->send(data, offset, PLAYER_INFO_UPDATE);
         free(data);
+        //TODO send information to spawn existing players
     }
     const map* m = this->currentLobby->getMap();
     position spawn = m->getSpawn();
@@ -501,7 +511,8 @@ void player::disconnect(){
 
 player::~player(){
     //FIXME invalid pointer exception after this was called when two players were on the server
-    free((char*)this->skin);
+    free((char*)this->skin.signature);
+    free((char*)this->skin.value);
 }
 
 void player::keepAlive(){
@@ -574,10 +585,14 @@ void player::spawnPlayer(const player* p){
     {
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         size_t skinSize = 0;
-        if(p->getSkin() != NULL){
-            skinSize = strlen(p->getSkin());
+        size_t signatureSize = 0;
+        if(p->getSkin().value != NULL){
+            skinSize = strlen(p->getSkin().value);
+            if(p->getSkin().signature != NULL){
+                signatureSize = strlen(p->getSkin().signature);
+            }
         }
-        byte* data = new byte[1 + MAX_VAR_INT + (sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17 + skinSize)];
+        byte* data = new byte[1 + MAX_VAR_INT + sizeof(UUID_t) + (4 * MAX_VAR_INT) + 17 + skinSize + signatureSize];
         size_t offset = 0;
         data[offset++] = flag;
         offset += writeVarInt(data + offset, 1);
@@ -585,12 +600,15 @@ void player::spawnPlayer(const player* p){
         memcpy(data + offset, &uid, sizeof(UUID_t));
         offset += sizeof(UUID_t);
         offset += writeString(data + offset, p->getUsername(), strlen(p->getUsername()));
-        const char* skin = p->getSkin();
-        if(skin != NULL){
+        skin_t skin = p->getSkin();
+        if(skin.value != NULL){
             offset += writeVarInt(data + offset, 1);
             offset += writeString(data + offset, "textures", 8);
-            offset += writeString(data + offset, skin, skinSize);
-            data[offset++] = false;
+            offset += writeString(data + offset, skin.value, skinSize);
+            data[offset++] = skin.signature != NULL;
+            if(skin.signature != NULL){
+                offset += writeString(data + offset, skin.signature, signatureSize);
+            }
         }
         else{
             offset += writeVarInt(data + offset, 0);
@@ -653,6 +671,7 @@ bool player::isOnGround() const{
     return this->onGround;
 }
 
-const char* player::getSkin() const{
+skin_t player::getSkin() const{
+    //FIXME skins still aren't applied. No idea why, might have something to do with signature, or uuid or something else. Look into skin restorer source?
     return this->skin;
 }

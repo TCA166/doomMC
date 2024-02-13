@@ -129,7 +129,7 @@ class player : public client, public entity{
         */
         bool isOnGround() const;
         UUID_t getUUID() const;
-        const char* getSkin() const;
+        skin_t getSkin() const;
     private:
         bool onGround;
         int health;
@@ -141,7 +141,7 @@ class player : public client, public entity{
         unsigned long teleportId; //last teleport id
         time_t lastKeepAlive;
         bool hasSpawned; //whether or not the player has spawned and the map has been loaded
-        const char* skin;
+        skin_t skin;
 };
 
 #endif

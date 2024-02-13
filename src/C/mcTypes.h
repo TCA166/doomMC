@@ -91,6 +91,13 @@ typedef struct bitSet{
     int64_t* data;
 } bitSet;
 
+typedef struct skin{
+    char* signature;
+    char* value;
+} skin_t;
+
+#define emptySkin (skin_t){NULL, NULL}
+
 #define nullPalettedContainer (palettedContainer){0, NULL, NULL}
 
 #define blockPaletteLowest 4
