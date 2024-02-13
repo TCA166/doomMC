@@ -6,14 +6,17 @@ all: server
 debug: CFLAGS+=-Werror -g
 debug: all
 
+packets: CFLAGS+=-DDEBUG_PACKETS
+packets: debug
+
 fast: CFLAGS+=-Ofast 
 fast: all
 
 server: src/main.cpp complete.o
 	g++ $(CFLAGS) -o server src/main.cpp complete.o -lspdlog -lfmt -lpthread -lz -lcurl -lcrypto
 
-complete.o: mcTypes.o networkingMc.o server.o cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o
-	ld -relocatable server.o mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o -o complete.o
+complete.o: mcTypes.o networkingMc.o server.o cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o weapons.o
+	ld -relocatable server.o mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o weapons.o -o complete.o
 
 server.o: src/server.cpp
 	g++ $(CFLAGS) -c src/server.cpp
@@ -35,6 +38,9 @@ udmf.o: src/map/udmf.cpp
 
 mcr.o: src/map/mcr.cpp
 	g++ $(CFLAGS) -c src/map/mcr.cpp
+
+weapons.o: src/weapons.cpp
+	g++ $(CFLAGS) -c src/weapons.cpp
 
 maps.o : map.o udmf.o mcr.o
 	ld -relocatable map.o udmf.o mcr.o -o maps.o
@@ -69,14 +75,14 @@ clean:
 
 check: debug
 	checkmk tests/C/mcTypesTests.check > tests/C/cTestsRunner.c
-	gcc tests/C/cTestsRunner.c mcTypes.o cNBT.o -lcheck -lm -Wall -lz -lsubunit -lrt -lpthread -o tests/C/cTestsRunner
+	gcc tests/C/cTestsRunner.c mcTypes.o cNBT.o networkingMc.o cJSON.o -lcheck -lm -Wall -lz -lsubunit -lrt -lpthread -lcrypto -lcurl -o tests/C/cTestsRunner
 	./tests/C/cTestsRunner
 
 tests/fuzz/serverFuzzer.o: tests/fuzz/serverFuzzer.cpp
 	g++ tests/fuzz/serverFuzzer.cpp -c -o tests/fuzz/serverFuzzer.o -g
 
 basicFuzzer: debug tests/fuzz/serverFuzzer.o tests/fuzz/basicFuzzer.cpp
-	g++ tests/fuzz/basicFuzzer.cpp complete.o tests/fuzz/serverFuzzer.o -o tests/fuzz/basicFuzzer -lspdlog -lfmt -lpthread -lz -g
+	g++ tests/fuzz/basicFuzzer.cpp complete.o tests/fuzz/serverFuzzer.o -o tests/fuzz/basicFuzzer -lspdlog -lfmt -lpthread -lcrypto -lz -g
 	gdb -ex=r --args tests/fuzz/basicFuzzer 2
 
 packetFuzzer: debug tests/fuzz/serverFuzzer.o tests/fuzz/packetFuzzer.cpp

@@ -12,6 +12,8 @@ extern "C" {
     #include <time.h>
 }
 
+#define clientCompression 20
+
 client::client(server* server, int fd, state_t state, char* username, int compression, int32_t protocol, int index) : client(server, fd, state, username, compression, protocol){
     this->index = index;
 }
@@ -43,7 +45,7 @@ client::client(){
 
 client::~client(){
     close(this->fd);
-    free(this->username);
+    delete[] this->username;
     spdlog::debug("Client {}({}) destroyed", this->uuid, this->index);
 }
 
@@ -65,7 +67,11 @@ void client::disconnect(){
 
 packet client::getPacket(){
     packet p = readPacket(this->fd, this->compression);
+    #ifdef DEBUG_PACKETS
+    spdlog::debug("Read packet {} from client {}", p.packetId, this->uuid);
+    #endif
     if(packetNull(p)){
+        spdlog::warn("Failed to read packet from client {}", this->uuid);
         if(errno == EPIPE){
             this->disconnect();
         }
@@ -77,16 +83,20 @@ packet client::getPacket(){
 }
 
 void client::send(byte* data, int length, byte packetId){
-    //spdlog::debug("Sending packet {} to client {}", packetId, this->uuid);
+    #ifdef DEBUG_PACKETS
+    spdlog::debug("Sending packet {} to client {}", packetId, this->uuid);
+    #endif
     int res = sendPacket(this->fd, length, packetId, data, this->compression);
-    if(res == -1){
+    if(res < 0){
         spdlog::warn("Sending packet {} to {} failed", packetId, this->uuid);
-        if(errno == EPIPE){
+        if(res == -2){
+            spdlog::error("Zlib error: {}", errno);
+            errno = ELIBEXEC;
+        }
+        else if(errno == EPIPE){
             this->disconnect();
         }
-        else{
-            throw std::error_code(errno, std::generic_category());
-        }
+        throw std::error_code(errno, std::generic_category());
     }
 }
 
@@ -131,9 +141,11 @@ void client::handlePacket(packet* p){
         case LOGIN_STATE:{
             if(p->packetId == LOGIN_START){
                 {
+                    //send the compression packet, then set the compression level
                     byte data[MAX_VAR_INT];
-                    size_t offset = writeVarInt(data, this->compression);
+                    size_t offset = writeVarInt(data, clientCompression);
                     this->send(data, offset, SET_COMPRESSION);
+                    this->compression = clientCompression;
                 }    
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);

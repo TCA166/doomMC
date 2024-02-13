@@ -76,7 +76,11 @@ typedef struct slot{
     bool present;
     int32_t id;
     uint8_t count;
-    nbt_node* NBT;
+    bool binaryNBT; //if true then NBT is stored as a byteArray
+    union{
+        nbt_node* NBT;
+        struct byteArray NBTbytes;
+    };
     int32_t cooldown;
 } slot;
 

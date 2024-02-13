@@ -29,9 +29,11 @@ player::player(server* server, int fd, state_t state, char* username, int compre
     }
 }
 
-void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
-    this->weapons = (struct weapon*)weapons;
-    this->ammo = (struct ammo*)ammo;
+void player::setWeapons(const weapon** weapons, const uint8_t* ammo){
+    for(int i = 0; i < MAX_WEAPONS; i++){
+        this->weapons[i] = weapons[i];
+        this->ammo[i] = ammo[i];
+    }
     this->currentSlot = 0;
     byte data[1 + (2 * MAX_VAR_INT) + (sizeof(slot) * 45)];
     size_t offset = 0;
@@ -44,10 +46,24 @@ void player::setWeapons(const struct weapon* weapons, const struct ammo* ammo){
         offset += writeSlot(data + offset, &slots[i]);
     }
     for(int i = 36; i < 45; i++){
-        struct weapon* weapon = &this->weapons[i - 36];
-        slots[i].present = weapon->owned;
-        slots[i].id = 1;
-        slots[i].count = this->ammo[weapon->ammoId].count;
+        const weapon* weapon = this->weapons[i - 36];
+        slots[i].present = weapon != NULL;
+        if(weapon != NULL){
+            slots[i].id = weapon->getItemId();
+            slots[i].count = this->getAmmo(weapon);
+            slots[i].NBT = NULL;
+            /*
+            slots[i].binaryNBT = true;
+            size_t nameLen = strlen(weapon->getName());
+            size_t nbtSize = 24 + nameLen;
+            byte* nbt = (byte*)malloc(nbtSize);
+            memcpy(nbt, "\x0A\x00\x00\x0A\x00\x07\x64\x69\x73\x70\x6C\x61\x79\x08\x00\x04\x4E\x61\x6D\x65", 20);
+            writeBigEndianShort(nbt + 20, nameLen);
+            memcpy(nbt + 22, weapon->getName(), nameLen);
+            nbt[nbtSize - 2] = 0;
+            nbt[nbtSize - 1] = 0;
+            slots[i].NBTbytes = {nbt, nbtSize};*/
+        }
         offset += writeSlot(data + offset, &slots[i]);
     }
     offset += writeSlot(data + offset, &slots[36 + this->currentSlot]);
@@ -122,6 +138,7 @@ void player::changeLobby(lobby* lobby){
 
 void player::startPlay(int32_t eid, lobby* assignedLobby){
     if(this->currentLobby != NULL){
+        spdlog::warn("Player {} is already in a lobby", this->username);
         return;
     }
     const char* dimensionName = (const char*)"minecraft:overworld";
@@ -315,7 +332,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
         this->send(data, offset, INITIALIZE_WORLD_BORDER);
     }
     //then send Set Container Content
-    this->setWeapons(this->currentLobby->getWeapons(), this->currentLobby->getAmmo());
+    this->setWeapons(this->currentLobby->getInitialWeapons(), this->currentLobby->getAmmo());
     this->setHealth(20);
     this->setLocation(positionX(spawn), positionY(spawn), positionZ(spawn));
     this->currentLobby->spawnPlayer(this);
@@ -674,4 +691,8 @@ bool player::isOnGround() const{
 skin_t player::getSkin() const{
     //FIXME skins still aren't applied. No idea why, might have something to do with signature, or uuid or something else. Look into skin restorer source?
     return this->skin;
+}
+
+uint8_t player::getAmmo(const weapon* w) const{
+    return this->ammo[w->getAmmunition()->getAmmoId()];
 }

@@ -39,7 +39,13 @@ void* lobby::monitorPlayers(lobby* thisLobby){
                     continue;
                 }
                 packet pack = p->getPacket();
-                p->handlePacket(&pack);
+                try{
+                    p->handlePacket(&pack);
+                }
+                catch(std::invalid_argument &e){
+                    spdlog::error("Error handling packet for player {}({}): {}", p->getUUID(), p->getIndex(), e.what());
+                    continue;
+                }
                 free(pack.data);
             }
         }
@@ -64,15 +70,22 @@ void* lobby::mainLoop(lobby* thisLobby){
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammo, const map* lobbyMap) : maxPlayers(maxPlayers), registryCodec(registryCodec), weapons(weapons), ammo(ammo), lobbyMap(lobbyMap){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const weapon* weapons, const uint8_t* ammo, const bool* weaponOwnership, const map* lobbyMap) : maxPlayers(maxPlayers), registryCodec(registryCodec), weapons(weapons), ammo(ammo), lobbyMap(lobbyMap){
     this->playerCount = 0;
     this->players = new player*[maxPlayers];
     memset(this->players, 0, sizeof(player*) * maxPlayers);
+    this->initialWeapons = new const weapon*[MAX_WEAPONS]();
+    for(uint8_t i = 0; i < MAX_WEAPONS; i++){
+        if(weaponOwnership[i]){
+            this->initialWeapons[i] = &weapons[i]; 
+        }
+    }
     this->epollFd = epoll_create1(0);
     if(this->epollFd < 0){
         perror("epoll_create1");
         throw std::error_code(errno, std::generic_category());
     }
+    this->epollPipe = new int[2];
     if(pipe(this->epollPipe) < 0){
         perror("pipe");
         throw std::error_code(errno, std::generic_category());
@@ -92,7 +105,7 @@ lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const stru
     }
 }
 
-lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map* lobbyMap) : lobby(maxPlayers, registryCodec, doomWeapons, doomAmmunition, lobbyMap){
+lobby::lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map* lobbyMap) : lobby(maxPlayers, registryCodec, doomWeapons, initAmmo, initWeapons, lobbyMap){
 
 }
 
@@ -104,6 +117,9 @@ lobby::~lobby(){
     }
     delete[] this->players;
     close(this->epollFd);
+    close(this->epollPipe[0]);
+    delete[] this->epollPipe;
+    delete[] this->initialWeapons;
 }
 
 unsigned int lobby::getPlayerCount() const{
@@ -112,6 +128,7 @@ unsigned int lobby::getPlayerCount() const{
 
 void lobby::addPlayer(player* p){
     if(this->playerCount >= this->maxPlayers){
+        spdlog::warn("Lobby is full");
         return;
     }
     this->playerCount++;
@@ -123,7 +140,6 @@ void lobby::addPlayer(player* p){
             event.events = EPOLLIN | EPOLLRDHUP;
             event.data.ptr = p;
             if(epoll_ctl(this->epollFd, EPOLL_CTL_ADD, p->getFd(), &event) < 0){
-                perror("epoll_ctl");
                 throw std::error_code(errno, std::generic_category());
             }
             if(write(this->epollPipe[1], "\0", 1) != 1){
@@ -158,7 +174,6 @@ void lobby::sendMessage(char* message){
 
 void lobby::removePlayer(player* p){
     if(epoll_ctl(this->epollFd, EPOLL_CTL_DEL, p->getFd(), NULL) < 0){
-        perror("epoll_ctl");
         throw std::error_code(errno, std::generic_category());
     }
     for(unsigned int i = 0; i < this->playerCount; i++){
@@ -172,11 +187,11 @@ void lobby::removePlayer(player* p){
     spdlog::debug("Removing player {}({}) from lobby", p->getUUID(), p->getIndex());
 }
 
-const struct weapon* lobby::getWeapons() const{
-    return this->weapons;
+const weapon** lobby::getInitialWeapons() const{
+    return this->initialWeapons;
 }
 
-const struct ammo* lobby::getAmmo() const{
+const uint8_t* lobby::getAmmo() const{
     return this->ammo;
 }
 

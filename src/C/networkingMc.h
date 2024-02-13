@@ -39,7 +39,7 @@ packet readPacket(int socketFd, int compression);
  @param packetId an id that identifies the packet in the Minecraft protocol
  @param data the values of fields of the packet
  @param compression the compression level established, or NO_COMPRESSION
- @return the number of bytes written, EOF or -1 for error
+ @return the number of bytes written, EOF or negative for error. -1 for system error, -2 for zlib error and errno is set to the zlib error code
 */
 ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int compression);
 

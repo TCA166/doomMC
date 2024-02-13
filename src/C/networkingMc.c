@@ -129,12 +129,16 @@ ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int c
         //ok so now we can compress
         int dataLength = offset + size;
         uLongf destLen = dataLength;
-        if(size + offset > compression){
+        if(dataLength > compression){
+            destLen = compressBound(dataLength);
             byte* compressed = calloc(destLen, sizeof(byte));
-            if(compress(compressed, &destLen, dataToCompress, destLen) != Z_OK){
-                return -1;
-            }
+            int res = compress(compressed, &destLen, dataToCompress, dataLength);
             free(dataToCompress);
+            if(res != Z_OK){
+                free(compressed);
+                errno = res;
+                return -2;
+            }
             dataToCompress = compressed;
         }
         else{

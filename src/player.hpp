@@ -23,9 +23,9 @@ class player : public client, public entity{
         /*!
          @brief Sets the weapons and ammo of the player, and sends the set inventory packet
          @param weapons the weapons to set
-         @param ammo the ammo to set
+         @param ammo the ammo counts to set
         */
-        void setWeapons(const struct weapon* weapons, const struct ammo* ammo);
+        void setWeapons(const weapon** weapons, const uint8_t* ammo);
         /*!
          @brief Sets the health of the player and sends the appropriate packet
          @param health the health of the player
@@ -130,11 +130,12 @@ class player : public client, public entity{
         bool isOnGround() const;
         UUID_t getUUID() const;
         skin_t getSkin() const;
+        uint8_t getAmmo(const weapon* w) const;
     private:
         bool onGround;
         int health;
-        struct weapon* weapons;
-        struct ammo* ammo;
+        const weapon* weapons[MAX_WEAPONS];
+        uint8_t ammo[MAX_WEAPONS]; //array of ammo where ammoId->ammoCount
         int currentSlot;
         void sendChunk(palettedContainer* sections, size_t sectionCount, int chunkX, int chunkZ);
         void setCenterChunk(int chunkX, int chunkZ);

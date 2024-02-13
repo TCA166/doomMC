@@ -1,6 +1,12 @@
 #include <check.h>
 #include <string.h>
+#include <stdlib.h>
+#include <unistd.h>
+
 #include "../../src/C/mcTypes.h"
+#include "../../src/C/networkingMc.h"
+
+#include <zlib.h>
 
 #suite varInt
 
@@ -120,3 +126,31 @@
 #test pointTest
     angle_t angle = toAngle(89.9f);
     ck_assert_int_eq(angle, 63);
+
+#suite packetTests
+
+#test compressedPacket
+    int dummy[2];
+    pipe(dummy);
+    byte dummyData[] = "Hello, I am having needless problems with the Mojang client during testing <3";
+    ssize_t written = sendPacket(dummy[1], sizeof(dummyData), 42, dummyData, 5);
+    byte* writtenBuff = malloc(written);
+    read(dummy[0], writtenBuff, written);
+    int off = 0;
+    int32_t packetLength = readVarInt(writtenBuff, &off);
+    ck_assert_int_eq(packetLength, 81);
+    int32_t uncompressed = readVarInt(writtenBuff, &off);
+    ck_assert_int_eq(uncompressed, 1 + sizeof(dummyData));
+    
+#test noNeedToCompress
+    int dummy[2];
+    pipe(dummy);
+    byte dummyData[] = "Hello";
+    ssize_t written = sendPacket(dummy[1], sizeof(dummyData), 42, dummyData, 10);
+    byte* writtenBuff = malloc(written);
+    read(dummy[0], writtenBuff, written);
+    int off = 0;
+    int32_t packetLength = readVarInt(writtenBuff, &off);
+    ck_assert_int_eq(packetLength, 8);
+    int32_t uncompressed = readVarInt(writtenBuff, &off);
+    ck_assert_int_eq(uncompressed, 0);

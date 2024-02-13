@@ -9,7 +9,7 @@ extern "C" {
     #include "../../cNBT/nbt.h"
 }
 
-#define regionSize 32
+#define regionSize 16
 #define sectionOffset 4
 
 minecraftRegion::minecraftRegion(const char* path, cJSON* version){
@@ -25,7 +25,7 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
     }
     this->spawnCount = 1;
     this->spawns = (position*)malloc(sizeof(position));
-    this->spawns[0] = toPosition(160, 160, 160);
+    this->spawns[0] = toPosition(regionSize * 8, 160, regionSize * 8);
     this->palette = NULL;
     this->paletteSize = 0;
     FILE* f = fopen(path, "rb");
@@ -34,8 +34,8 @@ minecraftRegion::minecraftRegion(const char* path, cJSON* version){
     }
     chunk* rawChunks = getChunks(f);
     fclose(f);
-    for(int chunkX = 0; chunkX < 32; chunkX++){
-        for(int chunkZ = 0; chunkZ < 32; chunkZ++){
+    for(int chunkX = 0; chunkX < regionSize; chunkX++){
+        for(int chunkZ = 0; chunkZ < regionSize; chunkZ++){
             int i = coordsToIndex(chunkX, chunkZ);
             if(!chunkIsNull(rawChunks[i])){
                 size_t sectionCount = 0;

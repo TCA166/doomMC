@@ -575,9 +575,15 @@ size_t writeSlot(byte* buff, slot* s){
         buff[offset] = s->count;
         offset++;
         if(s->NBT != NULL){
-            struct buffer b = nbt_dump_binary(s->NBT);
-            memcpy(buff + offset, b.data, b.len);
-            offset += b.len;
+            if(s->binaryNBT == false){
+                struct buffer b = nbt_dump_binary(s->NBT);
+                memcpy(buff + offset, b.data, b.len);
+                offset += b.len;
+            }
+            else{
+                memcpy(buff + offset, s->NBTbytes.bytes, s->NBTbytes.len);
+                offset += s->NBTbytes.len;
+            }
         }
         else{
             buff[offset] = TAG_INVALID;

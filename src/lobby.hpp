@@ -20,7 +20,7 @@ class player;
 
 class lobby{
     public:
-        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const struct weapon* weapons, const struct ammo* ammom, const map* lobbyMap);
+        lobby(unsigned int maxPlayers, const byteArray* registryCodec, const weapon* weapons, const uint8_t* ammo, const bool* weaponOnwership, const map* lobbyMap);
         lobby(unsigned int maxPlayers, const byteArray* registryCodec, const map* lobbyMap);
         ~lobby();
         /*!
@@ -54,15 +54,16 @@ class lobby{
         */
         const byteArray* getRegistryCodec() const;
         /*!
-         @brief Gets the weapons
+         @brief Gets the initial weapons
          @return the weapons for this lobby instance
         */
-        const struct weapon* getWeapons() const;
+        const weapon** getInitialWeapons() const;
+        const weapon* getWeapon(int n) const;
         /*!
          @brief Gets the ammo
          @return the ammo for this lobby instance
         */
-        const struct ammo* getAmmo() const;
+        const uint8_t* getAmmo() const;
         /*!
          @brief Gets the associated map
          @return the map for this lobby instance
@@ -126,11 +127,12 @@ class lobby{
         */
         static void* mainLoop(lobby* thisLobby);
         const byteArray* registryCodec;
-        const struct weapon* weapons;
-        const struct ammo* ammo;
+        const weapon* weapons; 
+        weapon const** initialWeapons;
+        const uint8_t* ammo;
         const map* lobbyMap;
         int epollFd;
-        int epollPipe[2];
+        int* epollPipe;
 };
 
 #endif
