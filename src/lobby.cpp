@@ -129,7 +129,15 @@ void lobby::addPlayer(player* p){
             if(write(this->epollPipe[1], "\0", 1) != 1){
                 throw std::error_code(errno, std::generic_category());
             }
-            p->startPlay(i, this);
+            try{
+                p->startPlay(i, this);
+            }
+            catch(std::error_code e){
+                spdlog::error("Error starting play for player {}({}): {}", p->getUUID(), p->getIndex(), e.message());
+                this->removePlayer(p);
+                delete p;
+                return;
+            }
             break;
         }
     }

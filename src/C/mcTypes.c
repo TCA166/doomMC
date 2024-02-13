@@ -6,6 +6,9 @@
 #include <endian.h>
 #include <math.h>
 
+#define OPENSSL_API_COMPAT 10002
+#include <openssl/md5.h>
+
 #include "mcTypes.h"
 
 //If index is null then changes index to point to a newly created int with value of 0
@@ -41,6 +44,22 @@ inline static float swapFloat(float val){
     dest[2] = src[1];
     dest[3] = src[0];
     return retVal;
+}
+
+UUID_t createOffline(const char* username){
+    MD5_CTX ctx;
+    MD5_Init(&ctx);
+    MD5_Update(&ctx, "OfflinePlayer:", 14);
+    MD5_Update(&ctx, username, strlen(username));
+    UUID_t result;
+    byte* restrict ptr = (byte*)&result;
+    MD5_Final(ptr, &ctx);
+    //https://github.com/AdoptOpenJDK/openjdk-jdk8u/blob/9a91972c76ddda5c1ce28b50ca38cbd8a30b7a72/jdk/src/share/classes/java/util/UUID.java#L153-L175
+    ptr[6]  &= 0x0f;  /* clear version        */
+    ptr[6]  |= 0x30;  /* set to version 3     */
+    ptr[8]  &= 0x3f;  /* clear variant        */
+    ptr[8]  |= 0x80;  /* set to IETF variant  */
+    return result;
 }
 
 //Gets the size of the nbt tag in buffer, assumes the nbt tag is of the given type

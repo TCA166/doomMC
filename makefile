@@ -10,7 +10,7 @@ fast: CFLAGS+=-Ofast
 fast: all
 
 server: src/main.cpp complete.o
-	g++ $(CFLAGS) -o server src/main.cpp complete.o -lspdlog -lfmt -lpthread -lz -lcurl
+	g++ $(CFLAGS) -o server src/main.cpp complete.o -lspdlog -lfmt -lpthread -lz -lcurl -lcrypto
 
 complete.o: mcTypes.o networkingMc.o server.o cNBT.o lobby.o player.o cJSON.o client.o maps.o regionParser.o entity.o
 	ld -relocatable server.o mcTypes.o networkingMc.o cNBT.o lobby.o player.o client.o maps.o cJSON.o regionParser.o entity.o -o complete.o

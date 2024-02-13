@@ -105,6 +105,13 @@ typedef struct skin{
 
 #define createLongMask(startBit, X) ((((uint64_t)1) << X) - 1) << startBit
 
+/*!
+ @brief Creates a new uuid for offline mode
+ @param username the username to create the uuid for
+ @return the created uuid
+*/
+UUID_t createOffline(const char* username);
+
 /*! 
  @brief Writes the given value to the buffer as VarInt
  @param buff pointer to an allocated buffer where the VarInt bytes shall be written to

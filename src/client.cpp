@@ -138,9 +138,12 @@ void client::handlePacket(packet* p){
                 this->username = readString(p->data, &offset);
                 size_t len = strlen(this->username);
                 this->uuid = readUUID(p->data, &offset);
+                if(this->uuid == 0){
+                    this->uuid = createOffline(this->username);
+                }
                 byte* data = new byte[sizeof(UUID_t) + len + 1 + (MAX_VAR_INT * 2)];
-                memcpy(data, &uuid, sizeof(uuid));
-                size_t dataOffset = sizeof(uuid);
+                memcpy(data, &this->uuid, sizeof(UUID_t));
+                size_t dataOffset = sizeof(UUID_t);
                 dataOffset += writeString(data + dataOffset, this->username, len);
                 dataOffset += writeVarInt(data + dataOffset, 0);
                 this->send(data, dataOffset, LOGIN_SUCCESS);
