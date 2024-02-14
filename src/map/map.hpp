@@ -12,6 +12,11 @@ class map{
         unsigned int getWidth() const; 
         unsigned int getHeight() const; 
         unsigned int getLength() const;
+        /*!
+         @brief Gets the width or length of the map, whichever is greater
+         @return the width or length of the map, whichever is greater
+        */
+        unsigned int getBound() const;
         const int32_t* getPalette() const;
         unsigned int getBlock(unsigned int x, unsigned int y, unsigned int z) const;
         size_t getPaletteSize() const;

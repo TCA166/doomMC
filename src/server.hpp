@@ -25,6 +25,8 @@ class server{
         cJSON* message;
         //stored registry codec
         byteArray registryCodec;
+        //stored game tags
+        byteArray tags;
         //epoll file descriptor
         int epollFd;
         //master socket for receiving new connections
@@ -36,22 +38,22 @@ class server{
          @brief Gets the player count
          @return the player count
         */
-        unsigned int getPlayerCount();
+        unsigned int getPlayerCount() const;
         /*!
          @brief Gets the lobby count
          @return the lobby count
         */
-        unsigned int getLobbyCount();
+        unsigned int getLobbyCount() const;
         /*!
          @brief Gets the number of the connected players
          @return the connected player count
         */
-        unsigned long getConnectedCount();
+        unsigned long getConnectedCount() const;
         /*!
          @brief Gets the status message
          @return the status message
         */
-        cJSON* getMessage();
+        cJSON* getMessage() const;
         /*!
          @brief Creates a new server instance
          @param maxPlayers the maximum number of players per lobby
@@ -71,7 +73,7 @@ class server{
          @brief Retrieves a client
          @return Client stored under the index
         */
-        client* getClient(int n);
+        client* getClient(int n) const;
         /*!
          @brief Removes a client
          @param n the index of the client to remove
@@ -86,12 +88,13 @@ class server{
          @brief Gets the registry codec
          @return the registry codec
         */
-        const byteArray* getRegistryCodec();
+        const byteArray* getRegistryCodec() const;
         /*!
          @brief Runs the server 
          @return 0 on success, -1 on error
         */
         int run();
+        const byteArray* getTags() const;
 };
 
 #endif

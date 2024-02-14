@@ -38,12 +38,15 @@ const char* weapon::getName() const{
 }
 
 byteArray weapon::getNBT() const{
-    //FIXME causes the client to throw an error
+    //FIXME doesn't work
     byteArray result;
     result.bytes = new byte[100];
     result.bytes[0] = TAG_COMPOUND;
     size_t offset = 1;
     offset += writeBigEndianShort(result.bytes + offset, 0);
+    result.bytes[offset++] = TAG_INT;
+    offset += writeNBTstring(result.bytes + offset, "Damage", 7);
+    offset += writeBigEndianInt(result.bytes + offset, 255);
     result.bytes[offset++] = TAG_COMPOUND;
     offset += writeNBTstring(result.bytes + offset, "display", 7);
     {

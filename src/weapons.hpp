@@ -9,6 +9,7 @@ extern "C"{
 }
 
 #define MAX_WEAPONS 9
+#define MELEE_AMMO_ID 0
 
 class ammo{
     private:

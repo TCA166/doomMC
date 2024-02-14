@@ -167,6 +167,21 @@ server::server(uint16_t port, unsigned int maxPlayers, unsigned int lobbyCount, 
     cJSON* max = cJSON_GetObjectItemCaseSensitive(players, "max");
     cJSON_SetNumberValue(max, maxPlayers * lobbyCount);
     this->message = status;
+    {
+        FILE* tagsFile = fopen("tags.bin", "rb");
+        if(tagsFile == NULL){
+            throw std::error_code(errno, std::generic_category());
+        }
+        fseek(tagsFile, 0, SEEK_END);
+        size_t tagsSize = ftell(tagsFile);
+        rewind(tagsFile);
+        byte* tagsData = (byte*)malloc(tagsSize);
+        if(fread(tagsData, 1, tagsSize, tagsFile) < tagsSize){
+            throw std::error_code(errno, std::generic_category());
+        }
+        fclose(tagsFile);
+        this->tags = {tagsData, tagsSize};
+    }
 }
 
 server::~server(){
@@ -229,11 +244,11 @@ int server::run(){
     return EXIT_SUCCESS;
 }
 
-unsigned int server::getLobbyCount(){
+unsigned int server::getLobbyCount() const{
     return this->lobbyCount;
 }
 
-unsigned int server::getPlayerCount(){
+unsigned int server::getPlayerCount() const{
     unsigned int playerCount = 0;
     for(unsigned int i = 0; i < this->lobbyCount; i++){
         playerCount += this->lobbies[i]->getPlayerCount();
@@ -276,11 +291,11 @@ void server::removeClient(int n){
     }
 }
 
-client* server::getClient(int n){
+client* server::getClient(int n) const{
     return this->connected[n];
 }
 
-cJSON* server::getMessage(){
+cJSON* server::getMessage() const{
     cJSON* players = cJSON_GetObjectItemCaseSensitive(this->message, "players");
     cJSON* online = cJSON_GetObjectItemCaseSensitive(players, "online");
     cJSON_SetIntValue(online, this->getPlayerCount());
@@ -299,6 +314,10 @@ void server::addToLobby(client* c){
     //TODO what do do with the client if there are no lobbies with space
 }
 
-const byteArray* server::getRegistryCodec(){
+const byteArray* server::getRegistryCodec() const{
     return &this->registryCodec;
+}
+
+const byteArray* server::getTags() const{
+    return &this->tags;
 }

@@ -45,7 +45,7 @@ client::client(){
 
 client::~client(){
     close(this->fd);
-    delete[] this->username;
+    free(this->username);
     spdlog::debug("Client {}({}) destroyed", this->uuid, this->index);
 }
 
@@ -208,7 +208,7 @@ void client::setUsername(char* username) {
 
 player* client::toPlayer(){
     int newSocket = dup(this->fd);
-    char* username = new char[strlen(this->username) + 1];
+    char* username = (char*)malloc(strlen(this->username) + 1);
     strcpy(username, this->username);
     player* p = new player(this->serv, newSocket, this->state, username, this->compression, this->protocol, this->uuid);
     return p;
@@ -227,9 +227,9 @@ void client::sendRegistryCodec(){
 
 void client::sendFeatureFlags(){
     const char* minecraftVanillaFlag = "minecraft:vanilla";
-    byte data[(MAX_VAR_INT * 2) + sizeof(minecraftVanillaFlag)];
+    byte data[(MAX_VAR_INT * 2) + 17];
     size_t offset = writeVarInt(data, 1);
-    offset += writeString(data + offset, minecraftVanillaFlag, sizeof(minecraftVanillaFlag));
+    offset += writeString(data + offset, minecraftVanillaFlag, 17);
     if(protocol > NO_CONFIG){
         this->send(data, offset, FEATURE_FLAGS);
     }
@@ -239,20 +239,13 @@ void client::sendFeatureFlags(){
 }
 
 void client::sendTags(){
-    const char* blockTag = "minecraft:block";
-    const char* indestructibleTag = "features_cannot_replace";
-    byte data[(MAX_VAR_INT * 3) + sizeof(indestructibleTag) + sizeof(blockTag)];
-    size_t offset = writeVarInt(data, 2);
-    offset += writeString(data + offset, blockTag, sizeof(blockTag));
-    offset += writeVarInt(data + offset, 0);
-    offset += writeString(data + offset, indestructibleTag, sizeof(indestructibleTag));
-    //TODO figure out a specific list of allowed block ids on the server
-    offset += writeVarInt(data + offset, 0);
+    const byteArray* tags = this->serv->getTags();
+    spdlog::debug("Sending tags to client {}", this->uuid);
     if(this->state == CONFIG_STATE){
-        this->send(data, offset, UPDATE_TAGS);
+        this->send(tags->bytes, tags->len, UPDATE_TAGS);
     }
     else if(this->state == PLAY_STATE){
-        this->send(data, offset, UPDATE_TAGS_PLAY);
+        this->send(tags->bytes, tags->len, UPDATE_TAGS_PLAY);
     }
 }
 

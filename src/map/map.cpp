@@ -25,6 +25,10 @@ unsigned int map::getLength() const{
     return this->length;
 }
 
+unsigned int map::getBound() const{
+    return this->width > this->length ? this->width : this->length;
+}
+
 const int32_t* map::getPalette() const{
     return this->palette;
 }

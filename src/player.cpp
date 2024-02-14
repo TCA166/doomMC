@@ -10,6 +10,8 @@ extern "C"{
     #include <time.h>
 }
 
+#define playerGamemode 2
+
 #define timeout 2000
 
 //https://wiki.vg/index.php?title=Protocol&oldid=18242 (1.19.4)
@@ -54,9 +56,12 @@ void player::setWeapons(const weapon** weapons, const uint8_t* ammo){
             slots[i].NBTbytes = weapon->getNBT();
         }
         offset += writeSlot(data + offset, &slots[i]);
-        delete[] slots[i].NBTbytes.bytes;
+        if(this->currentSlot != i - 36){
+            delete[] slots[i].NBTbytes.bytes;
+        }
     }
     offset += writeSlot(data + offset, &slots[36 + this->currentSlot]);
+    delete[] slots[36 + this->currentSlot].NBTbytes.bytes;
     this->send(data, offset, SET_CONTAINER_CONTENT);
 }
 
@@ -141,7 +146,7 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 byte* data = new byte[(sizeof(int32_t) * 2) + 10 + (20 * 3) + (MAX_VAR_INT * 5) + registryCodec->len];
                 size_t offset = writeBigEndianInt(data, eid);
                 data[offset++] = false; //not hardcore
-                data[offset++] = 0; //gamemode
+                data[offset++] = playerGamemode; //gamemode
                 data[offset++] = -1; //prev gamemode
                 offset += writeVarInt(data + 7, 1);
                 offset += writeString(data + offset, dimensionName, 19);
@@ -222,8 +227,8 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     {//update player list
         byte flag = 0x01 | 0x04 | 0x08 | 0x10;
         byte* data = (byte*)malloc(1 + MAX_VAR_INT + sizeof(UUID_t) + (MAX_VAR_INT * 3) + 25);
-        size_t offset = 0;
-        data[offset++] = flag;
+        data[0] = flag;
+        size_t offset = 1;
         offset += writeVarInt(data + offset, this->currentLobby->getPlayerCount());
         for(unsigned int i = 0; i < this->currentLobby->getMaxPlayers(); i++){
             const player* p = this->currentLobby->getPlayer(i);
@@ -271,7 +276,6 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     this->setCenterChunk((int32_t)floor(positionX(spawn) / 16), (int32_t)floor(positionZ(spawn) / 16));
     //send chunk data and update light
     {
-        this->send(NULL, 0, BUNDLE_DELIMITER);
         //get width in chunks
         int chunkWidth = m->getWidth() / 16;
         //get length in chunks
@@ -293,14 +297,13 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
                 }
             }
         }
-        this->send(NULL, 0, BUNDLE_DELIMITER);
     }
     {//Respawn
         byte* p = new byte[(19 * 2) + (MAX_VAR_INT * 2) + sizeof(int64_t) + 6];
         size_t offset = writeString(p, dimensionName, 19);
         offset += writeString(p + offset, dimensionName, 19);
         offset += writeBigEndianLong(p + offset, 0);
-        p[offset++] = 0; //gamemode
+        p[offset++] = playerGamemode; //gamemode
         p[offset++] = -1; //prev gamemode
         p[offset++] = false; //is debug
         p[offset++] = false; //is flat
@@ -311,14 +314,15 @@ void player::startPlay(int32_t eid, lobby* assignedLobby){
     }
     {//send initialize world border
         byte data[(sizeof(double) * 4) + (MAX_VAR_INT * 4)];
-        size_t offset = writeBigEndianDouble(data, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 0);
-        offset += writeBigEndianDouble(data + offset, 1000);
-        offset += writeVarInt(data + offset, 0); //TODO should be varLong
+        size_t offset = writeBigEndianDouble(data, positionX(spawn));
+        offset += writeBigEndianDouble(data + offset, positionZ(spawn));
+        unsigned int bound = m->getBound();
+        offset += writeBigEndianDouble(data + offset, bound);
+        offset += writeBigEndianDouble(data + offset, bound);
+        offset += writeVarInt(data + offset, 0); //MAYBE should be varLong
+        offset += writeVarInt(data + offset, bound);
         offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
-        offset += writeVarInt(data + offset, 0);
+        offset += writeVarInt(data + offset, 1);
         this->send(data, offset, INITIALIZE_WORLD_BORDER);
     }
     //then send Set Container Content
@@ -425,6 +429,15 @@ void player::handlePacket(packet* p){
             }
             break;
         }
+        case SET_HELD_ITEM:{
+            this->heldSlot = readBigEndianShort(p->data, &offset);
+            break;
+        }
+        case SWING_ARM:{
+            //only fires when the player swings their arm
+            //TODO
+            break;
+        }
     }
 }
 
@@ -517,7 +530,6 @@ void player::disconnect(){
 }
 
 player::~player(){
-    //FIXME invalid pointer exception after this was called when two players were on the server
     free((char*)this->skin.signature);
     free((char*)this->skin.value);
 }

@@ -3,14 +3,14 @@
 
 #include "weapons.hpp"
 
-static const ammo none = ammo(0, 0, 20, 1);
+static const ammo none = ammo(MELEE_AMMO_ID, 0, 20, 1);
 static const ammo pistolAmmo = ammo(1, 200, 10, 100);
 static const ammo shotgunAmmo = ammo(2, 50, 20, 100);
 static const ammo chaingunAmmo = ammo(3, 200, 5, 100);
 static const ammo rocketAmmo = ammo(4, 50, 50, 100);
 static const ammo plasmaAmmo = ammo(5, 250, 20, 100);
 
-static const weapon fist = weapon("Fist", 10, &none, 1);
+static const weapon fist = weapon("Fist", 10, &none, 0);
 static const weapon pistol = weapon("Pistol", 10, &pistolAmmo, 1);
 static const weapon shotgun = weapon("Shotgun", 20, &shotgunAmmo, 1);
 static const weapon superShotgun = weapon("Super Shotgun", 30, &shotgunAmmo, 1);
