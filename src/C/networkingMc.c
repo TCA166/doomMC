@@ -157,11 +157,6 @@ ssize_t sendPacket(int socketFd, int size, int packetId, const byte* data, int c
     }
 }
 
-struct string {
-    char *ptr;
-    size_t len;
-};
-
 static size_t writeToString(void *ptr, size_t size, size_t nmemb, struct string *s){
     size_t newLen = s->len + size*nmemb;
     s->ptr = realloc(s->ptr, newLen + 1);

@@ -62,6 +62,11 @@ typedef struct byteArray{
 
 #define nullByteArray (byteArray){NULL, 0}
 
+typedef struct string {
+    char *ptr;
+    size_t len;
+} string_t;
+
 typedef struct stringArray{
     char** arr;
     size_t len;
@@ -76,11 +81,7 @@ typedef struct slot{
     bool present;
     int32_t id;
     uint8_t count;
-    bool binaryNBT; //if true then NBT is stored as a byteArray
-    union{
-        nbt_node* NBT;
-        struct byteArray NBTbytes;
-    };
+    byteArray NBTbytes;
     int32_t cooldown;
 } slot;
 
@@ -442,5 +443,14 @@ byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, 
  @return the encoded long
 */
 uint64_t writePackedLong(const int32_t* val, int perLong, int index, uint8_t bpe);
+
+/*!
+ @brief Writes a string to the buffer preceded by a big endian short
+ @param buff the buffer to write to
+ @param value the string to write
+ @param len the length of the string
+ @return the amount of bytes written
+*/
+size_t writeNBTstring(byte* buff, const char* value, size_t len);
 
 #endif

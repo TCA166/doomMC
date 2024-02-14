@@ -51,20 +51,10 @@ void player::setWeapons(const weapon** weapons, const uint8_t* ammo){
         if(weapon != NULL){
             slots[i].id = weapon->getItemId();
             slots[i].count = this->getAmmo(weapon);
-            slots[i].NBT = NULL;
-            /*
-            slots[i].binaryNBT = true;
-            size_t nameLen = strlen(weapon->getName());
-            size_t nbtSize = 24 + nameLen;
-            byte* nbt = (byte*)malloc(nbtSize);
-            memcpy(nbt, "\x0A\x00\x00\x0A\x00\x07\x64\x69\x73\x70\x6C\x61\x79\x08\x00\x04\x4E\x61\x6D\x65", 20);
-            writeBigEndianShort(nbt + 20, nameLen);
-            memcpy(nbt + 22, weapon->getName(), nameLen);
-            nbt[nbtSize - 2] = 0;
-            nbt[nbtSize - 1] = 0;
-            slots[i].NBTbytes = {nbt, nbtSize};*/
+            slots[i].NBTbytes = weapon->getNBT();
         }
         offset += writeSlot(data + offset, &slots[i]);
+        delete[] slots[i].NBTbytes.bytes;
     }
     offset += writeSlot(data + offset, &slots[36 + this->currentSlot]);
     this->send(data, offset, SET_CONTAINER_CONTENT);

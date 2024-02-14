@@ -5,6 +5,7 @@ class player;
 
 extern "C"{
     #include <stdint.h>
+    #include "C/mcTypes.h"
 }
 
 #define MAX_WEAPONS 9
@@ -35,6 +36,7 @@ class weapon{
         const char* getName() const;
         const ammo* getAmmunition() const;
         unsigned int getItemId() const;
+        byteArray getNBT() const;
 };
 
 #endif

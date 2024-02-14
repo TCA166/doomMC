@@ -311,13 +311,16 @@ slot readSlot(const byte* buff, int* index){
         result.id = readVarInt(buff, index);
         result.count = readByte(buff, index);
         size_t sz = nbtSize(buff + *index, false);
-        result.NBT = nbt_parse(buff + *index, sz);
+        nbt_node* nbt = nbt_parse(buff + *index, sz);
+        struct buffer b = nbt_dump_binary(nbt);
+        result.NBTbytes.bytes = b.data;
+        result.NBTbytes.len = b.len;
         *index += sz;
     }
     else{
         result.id = 0;
         result.count = 0;
-        result.NBT = NULL;
+        result.NBTbytes.bytes = NULL;
     }
     return result;
 }
@@ -574,16 +577,9 @@ size_t writeSlot(byte* buff, slot* s){
         offset += writeVarInt(buff + offset, s->id);
         buff[offset] = s->count;
         offset++;
-        if(s->NBT != NULL){
-            if(s->binaryNBT == false){
-                struct buffer b = nbt_dump_binary(s->NBT);
-                memcpy(buff + offset, b.data, b.len);
-                offset += b.len;
-            }
-            else{
-                memcpy(buff + offset, s->NBTbytes.bytes, s->NBTbytes.len);
-                offset += s->NBTbytes.len;
-            }
+        if(s->NBTbytes.bytes != NULL){
+            memcpy(buff + offset, s->NBTbytes.bytes, s->NBTbytes.len);
+            offset += s->NBTbytes.len;
         }
         else{
             buff[offset] = TAG_INVALID;
@@ -643,4 +639,10 @@ byteArray writeSections(palettedContainer* sections, palettedContainer* biomes, 
         free(biomes.bytes);
     }
     return (byteArray){data, offset};
+}
+
+size_t writeNBTstring(byte* buff, const char* value, size_t len){
+    size_t offset = writeBigEndianShort(buff, len);
+    memcpy(buff + offset, value, len);
+    return offset + len;
 }
